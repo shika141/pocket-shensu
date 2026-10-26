@@ -1,0 +1,226 @@
+// 06｜MVP 遊戲主畫面：跨螢幕蛋型機身、操作選單、登入與同步狀態。
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ArrowLeft, ArrowRight, Heart, KeyRound, LogOut, Wifi, WifiOff } from 'lucide-react'
+import { freshState, relationship, ROOMS, type GameState, type Outfit, type Room } from './01_gameData'
+import { simulate } from './02_simulation'
+import { loadLocal, saveLocal, type LocalEnvelope } from './03_storage'
+import { readCloud, supabase, writeCloud } from './04_supabase'
+import { interact, setOutfit, setRoom, type Action } from './05_interactions'
+
+type Page = 'status' | 'care' | 'places' | 'closet' | 'memories'
+const pages: Page[] = ['status', 'care', 'places', 'closet', 'memories']
+const pageLabels: Record<Page, string> = { status: '狀態', care: '互動', places: '場景', closet: '服裝', memories: '回憶' }
+const actionRows: { id: Action; label: string; hint: string }[] = [
+  { id: 'feed', label: '準備餐點', hint: '飽足 +30' }, { id: 'comfort', label: '安慰他', hint: '親密 +2' },
+  { id: 'headpat', label: '摸摸頭', hint: '親密 +1' }, { id: 'rest', label: '邀請休息', hint: '體力 +24' },
+  { id: 'clean', label: '提醒洗澡', hint: '清潔 +35' }, { id: 'watch', label: '看比賽錄影', hint: '熟練 +1・親密 +2' },
+  { id: 'plush', label: '送鯊魚娃娃', hint: '解鎖他的心頭好' }, { id: 'shark', label: '鯊魚裝事件', hint: '特殊回憶' },
+]
+const roomNames: Record<Room, string> = { living: '高樓公寓・客廳', bedroom: '高樓公寓・臥室', kitchen: '高樓公寓・廚房', pool: '曜川競技泳池' }
+
+export default function App() {
+  const [envelope, setEnvelope] = useState<LocalEnvelope>(() => loadLocal() ?? { state: freshState(), revision: 0, pending: false })
+  const [page, setPage] = useState<Page>('status')
+  const [selected, setSelected] = useState(0)
+  const [clock, setClock] = useState(new Date())
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [authOpen, setAuthOpen] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
+  const [syncText, setSyncText] = useState(supabase ? '尚未登入' : '本機存檔')
+  const [busy, setBusy] = useState(false)
+  const state = envelope.state
+
+  const commit = useCallback((next: GameState) => {
+    const updated = { ...next, updatedAt: Date.now() }
+    const pending = Boolean(supabase && userEmail)
+    const nextEnvelope = { ...envelope, state: updated, pending }
+    saveLocal(nextEnvelope)
+    setEnvelope(nextEnvelope)
+    if (pending) setSyncText('待同步')
+  }, [envelope, userEmail])
+
+  useEffect(() => {
+    const tick = () => {
+      const current = loadLocal() ?? envelope
+      const simulated = simulate(current.state)
+      const next = { ...current, state: simulated }
+      saveLocal(next); setEnvelope(next); setClock(new Date())
+    }
+    tick()
+    const timer = window.setInterval(tick, 30_000)
+    return () => window.clearInterval(timer)
+    // Seed the first local snapshot and refresh the real-time clock.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (!supabase) return
+    supabase.auth.getSession().then(({ data }) => {
+      const session = data.session
+      if (session?.user) { setUserEmail(session.user.email ?? '玩家'); hydrateCloud(session.user.id) }
+    })
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) { setUserEmail(session.user.email ?? '玩家'); window.setTimeout(() => hydrateCloud(session.user.id), 0) }
+      else { setUserEmail(null); setSyncText('尚未登入') }
+    })
+    return () => listener.subscription.unsubscribe()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const hydrateCloud = async (id: string) => {
+    if (!supabase) return
+    setSyncText('讀取雲端…')
+    try {
+      const cloud = await readCloud(id)
+      const local = loadLocal() ?? envelope
+      if (!cloud) {
+        if (local.pending) {
+          const saved = await writeCloud(id, local.state, 0)
+          const clean = { state: saved.state, revision: saved.revision, pending: false }; saveLocal(clean); setEnvelope(clean)
+        } else {
+          const clean = { ...local, pending: false }; saveLocal(clean); setEnvelope(clean)
+        }
+      } else if (cloud.revision >= local.revision) {
+        const clean = { state: cloud.state, revision: cloud.revision, pending: false }; saveLocal(clean); setEnvelope(clean)
+      } else {
+        try {
+          const saved = await writeCloud(id, local.state, cloud.revision)
+          const clean = { state: saved.state, revision: saved.revision, pending: false }; saveLocal(clean); setEnvelope(clean)
+        } catch {
+          const latest = await readCloud(id)
+          if (latest) { const clean = { state: latest.state, revision: latest.revision, pending: false }; saveLocal(clean); setEnvelope(clean) }
+          setSyncText('版本衝突：已載入較新雲端存檔')
+        }
+      }
+      setSyncText('已同步')
+    } catch (error) { setSyncText(error instanceof Error ? error.message : '同步失敗') }
+  }
+
+  useEffect(() => {
+    if (!userEmail || !supabase || !envelope.pending) return
+    const client = supabase
+    const timer = window.setTimeout(async () => {
+      const { data } = await client.auth.getUser()
+      const user = data.user
+      if (!user) return
+      try {
+        const saved = await writeCloud(user.id, envelope.state, envelope.revision)
+        const clean = { state: saved.state, revision: saved.revision, pending: false }
+        saveLocal(clean); setEnvelope(clean); setSyncText('已同步')
+      } catch (error) {
+        if (error instanceof Error && error.message === 'REVISION_CONFLICT') {
+          const latest = await readCloud(user.id)
+          if (latest) { const clean = { state: latest.state, revision: latest.revision, pending: false }; saveLocal(clean); setEnvelope(clean) }
+          setSyncText('版本衝突：已採用較新存檔')
+        } else setSyncText('同步失敗，保留本機存檔')
+      }
+    }, 650)
+    return () => window.clearTimeout(timer)
+  }, [envelope, userEmail])
+
+  const doAction = (id: Action) => {
+    if (busy) return
+    setBusy(true); commit(interact(state, id)); window.setTimeout(() => setBusy(false), 420)
+  }
+  const changePage = (direction: number) => {
+    const index = pages.indexOf(page)
+    setPage(pages[(index + direction + pages.length) % pages.length]); setSelected(0)
+  }
+  const confirm = () => {
+    if (page === 'care') doAction(actionRows[selected % actionRows.length].id)
+    else if (page === 'places') { const room = ROOMS[selected % ROOMS.length].id; commit(setRoom(state, room)) }
+    else if (page === 'closet') { const outfits: Outfit[] = ['home', 'training', 'shark']; commit(setOutfit(state, outfits[selected % outfits.length])) }
+    else if (page === 'status') changePage(1)
+  }
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft') { event.preventDefault(); changePage(-1) }
+      else if (event.key === 'ArrowRight') { event.preventDefault(); changePage(1) }
+      else if (event.key === 'ArrowUp') { event.preventDefault(); setSelected((v) => Math.max(0, v - 1)) }
+      else if (event.key === 'ArrowDown') { event.preventDefault(); setSelected((v) => v + 1) }
+      else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); confirm() }
+      else if (event.key === 'Escape') setPage('status')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
+  const timeLabel = useMemo(() => new Intl.DateTimeFormat('zh-TW', { hour: '2-digit', minute: '2-digit', weekday: 'short' }).format(clock), [clock])
+  const signin = async (event: React.FormEvent) => {
+    event.preventDefault(); if (!supabase) return; setBusy(true)
+    try {
+      const result = authMode === 'login'
+        ? await supabase.auth.signInWithPassword({ email, password })
+        : await supabase.auth.signUp({ email, password })
+      if (result.error) throw result.error
+      if (result.data.user && !result.data.session) setSyncText('註冊成功，請先確認信箱再登入')
+      else setSyncText('登入成功，同步中…')
+    } catch (error) { setSyncText(error instanceof Error ? error.message : '登入失敗') }
+    finally { setBusy(false) }
+  }
+
+  return <main className="app-shell">
+    <header className="topbar"><div className="brand"><span className="brand-mark">S</span><div><strong>口袋沈溯</strong><small>POCKET SHENSU · MVP 0.1</small></div></div>
+      <button className="account-chip" onClick={() => setAuthOpen(!authOpen)} disabled={!supabase} title={supabase ? '帳號與雲端同步' : '請先設定 Supabase'}>
+        {userEmail ? <><Wifi size={15}/><span>{userEmail}</span></> : <><WifiOff size={15}/><span>{supabase ? '登入同步' : '本機模式'}</span></>}
+      </button>
+    </header>
+    <section className="game-layout">
+      <aside className="intro"><div className="eyebrow">YOUR QUIET COMPANION</div><h1>他的生活<br/><em>正在繼續。</em></h1><p>即使你離開，沈溯也會照著自己的作息訓練、吃飯和休息。回來時，再一起待一會兒。</p>
+        <div className="intro-line"><span className="pulse"/>現實時間同步 <b>{timeLabel}</b></div>
+      </aside>
+      <section className="device-area" aria-label="口袋沈溯遊戲機">
+        <div className="device-screw screw-one"/><div className="device-screw screw-two"/>
+        <div className="device-logo"><span>SHENSU</span><i>✦</i></div>
+        <div className={`egg-screen room-${state.room}`}>
+          <div className="screen-top"><span>{roomNames[state.room]}</span><span>♥ {state.intimacy}</span></div>
+          <div className="pixel-scene">
+            <Scene room={state.room}/><Character outfit={state.outfit} mood={state.mood}/>
+            {state.sharkPlush && state.room !== 'pool' && <div className="plush">🦈</div>}
+            <div className="speech">{speech(state.mood, state.activity)}</div>
+          </div>
+          <div className="screen-bottom"><span>{state.activity}</span><span>{state.mood}</span></div>
+        </div>
+        <div className="device-bottom"><div className="screen-label">POCKET SHENSU</div><div className="button-row">
+          <button aria-label="上一頁" onClick={() => changePage(-1)}><ArrowLeft size={18}/></button>
+          <button className="confirm-button" aria-label="確認" onClick={confirm}><Heart size={19}/></button>
+          <button aria-label="下一頁" onClick={() => changePage(1)}><ArrowRight size={18}/></button>
+        </div><div className="button-labels"><span>PREV</span><span>OK</span><span>NEXT</span></div></div>
+        <div className="device-screw screw-three"/><div className="device-screw screw-four"/>
+      </section>
+      <section className="control-panel">
+        <div className="panel-header"><div><div className="eyebrow">SHENSU · 24</div><h2>{pageLabels[page]}<span className="page-count">0{pages.indexOf(page)+1}/05</span></h2></div><div className="status-dot" title={syncText}/></div>
+        {page === 'status' && <div className="status-content">
+          <div className="quote-card"><span className="quote-mark">“</span><p>{state.lastInteraction}</p><small>沈溯 · {state.activity}</small></div>
+          <Stat label="飽足" value={state.hunger} color="blue"/><Stat label="體力" value={state.energy} color="silver"/><Stat label="清潔" value={state.cleanliness} color="teal"/>
+          <div className="relationship"><div><Heart size={15}/><span>關係階段</span></div><strong>{relationship(state.intimacy)}</strong><div className="heart-meter"><i style={{ width: `${state.intimacy}%` }}/></div><small>親密度 {state.intimacy} / 100</small></div>
+          <div className="mini-facts"><span>蝶泳熟練 <b>{state.swimSkill}</b></span><span>服裝 <b>{outfitName(state.outfit)}</b></span></div>
+        </div>}
+        {page === 'care' && <div className="menu-list">{actionRows.map((row, index) => <button key={row.id} className={`menu-row ${selected % actionRows.length === index ? 'selected' : ''}`} onMouseEnter={() => setSelected(index)} onClick={() => doAction(row.id)}><span className="row-icon">{['＋','♡','⌁','☾','◌','≈','🦈','✦'][index]}</span><span className="row-copy"><b>{row.label}</b><small>{row.hint}</small></span><span className="row-arrow">›</span></button>)}</div>}
+        {page === 'places' && <div className="menu-list">{ROOMS.map((room, index) => <button key={room.id} className={`menu-row ${state.room === room.id ? 'selected' : ''}`} onMouseEnter={() => setSelected(index)} onClick={() => commit(setRoom(state, room.id))}><span className="row-icon">{room.icon}</span><span className="row-copy"><b>{room.name}</b><small>{state.room === room.id ? '目前所在位置' : '切換場景'}</small></span><span className="row-arrow">›</span></button>)}<p className="panel-note">訓練、用餐與睡眠時段會依作息前往對應地點。</p></div>}
+        {page === 'closet' && <div className="closet-grid">{(['home','training','shark'] as Outfit[]).map((outfit, index) => <button className={`outfit-card ${state.outfit === outfit ? 'selected' : ''}`} key={outfit} onMouseEnter={() => setSelected(index)} onClick={() => commit(setOutfit(state, outfit))}><span>{outfit === 'shark' ? '🦈' : outfit === 'training' ? '🏊' : '◒'}</span><b>{outfitName(outfit)}</b><small>{state.outfit === outfit ? '穿著中' : '點擊換上'}</small></button>)}</div>}
+        {page === 'memories' && <div className="memory-view">{state.unlockedMemories.length ? <div className="memory-card"><div className="memory-art">🦈<span>✦</span></div><b>安靜等你</b><p>沈溯穿著灰藍鯊魚裝，抱著娃娃坐在沙發上。</p><small>特別事件 · 已收錄</small></div> : <div className="empty-memory"><div>✧</div><b>回憶還是空白的</b><p>陪伴沈溯、參與日常，慢慢把重要時刻留在這裡。</p><button onClick={() => { setPage('care'); setSelected(7) }}>看看今天的他</button></div>}</div>}
+        <div className="panel-footer"><span>{syncText}</span><span>← → 切換 · ↑ ↓ 選擇 · Enter 確認</span></div>
+      </section>
+    </section>
+    <footer className="footnote"><span>沈溯不會因為你離線而消失。</span><span>本機存檔 {envelope.pending ? '· 有待同步資料' : '· 已保存'} </span></footer>
+    {authOpen && <div className="modal-backdrop" onClick={() => setAuthOpen(false)}><section className="auth-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setAuthOpen(false)}>×</button><div className="eyebrow">CLOUD SAVE</div><h2>{userEmail ? '雲端存檔已連結' : authMode === 'login' ? '登入你的帳號' : '建立遊戲帳號'}</h2>
+      {userEmail ? <><p className="auth-description">登入後，這個帳號的親密度、服裝、收藏、劇情進度和沈溯狀態會在裝置間同步。</p><button className="primary-button" onClick={() => supabase?.auth.signOut()}><LogOut size={16}/> 登出 {userEmail}</button></> : <form onSubmit={signin}><p className="auth-description">使用 Supabase 帳號在不同裝置延續同一份存檔。</p><label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required/></label><label>密碼<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={6} required/></label><button className="primary-button" disabled={busy}><KeyRound size={16}/>{authMode === 'login' ? '登入並同步' : '建立帳號'}</button><button type="button" className="text-button" onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}>{authMode === 'login' ? '還沒有帳號？建立帳號' : '已有帳號？返回登入'}</button></form>}
+      <small className="auth-status">{syncText}</small></section></div>}
+  </main>
+}
+
+function Stat({ label, value, color }: { label: string; value: number; color: string }) { return <div className="stat-row"><div><span>{label}</span><b>{value}%</b></div><div className="bar"><i className={color} style={{ width: `${value}%` }}/></div></div> }
+function outfitName(outfit: Outfit) { return outfit === 'training' ? '競技訓練服' : outfit === 'shark' ? '灰藍鯊魚裝' : '居家服' }
+function speech(mood: GameState['mood'], activity: GameState['activity']) {
+  if (mood === '低落' || mood === '煩躁') return '……'
+  if (activity === '晨訓' || activity === '下午訓練') return '再一趟。'
+  if (activity === '睡眠') return 'Z z…'
+  if (mood === '想撒嬌') return '……過來。'
+  return '嗯。'
+}
+function Scene({ room }: { room: Room }) { return <div className={`scene scene-${room}`}><div className="window"><div className="skyline"><i/><i/><i/><i/><i/></div></div>{room === 'pool' ? <><div className="pool-water"><i/><i/><i/></div><div className="starting-block">04</div></> : room === 'bedroom' ? <><div className="bed"><i/></div><div className="lamp"/></> : room === 'kitchen' ? <><div className="counter"/><div className="table"/></> : <><div className="sofa"><i/></div><div className="coffee-table"/></>}</div> }
+function Character({ outfit, mood }: { outfit: Outfit; mood: GameState['mood'] }) { return <div className={`character character-${outfit} ${mood === '疲倦' ? 'tired' : ''}`}><div className="hair"><i/><i/><i/></div><div className="head"><i className="eye eye-left"/><i className="eye eye-right"/><i className="mole"/><i className="mouth"/></div><div className="neck"/><div className="body"><i className="arm arm-left"/><i className="arm arm-right"/><i className="leg leg-left"/><i className="leg leg-right"/></div>{outfit === 'shark' && <div className="shark-hood">⌃</div>}</div> }

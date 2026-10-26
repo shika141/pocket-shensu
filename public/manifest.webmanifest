@@ -1,0 +1,10 @@
+{
+  "name": "口袋沈溯",
+  "short_name": "口袋沈溯",
+  "description": "陪伴沈溯日常生活的電子雞養成遊戲",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#e8eef0",
+  "theme_color": "#172c3d",
+  "icons": []
+}
