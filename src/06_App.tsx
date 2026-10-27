@@ -24,6 +24,7 @@ export default function App() {
   const [selected, setSelected] = useState(0)
   const [clock, setClock] = useState(new Date())
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
   const [authOpen, setAuthOpen] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -34,36 +35,46 @@ export default function App() {
 
   const commit = useCallback((next: GameState) => {
     const updated = { ...next, updatedAt: Date.now() }
-    const pending = Boolean(supabase && userEmail)
+    const pending = Boolean(supabase && userId)
     const nextEnvelope = { ...envelope, state: updated, pending }
-    saveLocal(nextEnvelope)
+    saveLocal(nextEnvelope, userId)
     setEnvelope(nextEnvelope)
     if (pending) setSyncText('待同步')
-  }, [envelope, userEmail])
+  }, [envelope, userId])
 
   useEffect(() => {
     const tick = () => {
-      const current = loadLocal() ?? envelope
+      const current = loadLocal(userId) ?? { state: freshState(), revision: 0, pending: false }
       const simulated = simulate(current.state)
       const next = { ...current, state: simulated }
-      saveLocal(next); setEnvelope(next); setClock(new Date())
+      saveLocal(next, userId); setEnvelope(next); setClock(new Date())
     }
     tick()
     const timer = window.setInterval(tick, 30_000)
     return () => window.clearInterval(timer)
     // Seed the first local snapshot and refresh the real-time clock.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [userId])
 
   useEffect(() => {
     if (!supabase) return
     supabase.auth.getSession().then(({ data }) => {
       const session = data.session
-      if (session?.user) { setUserEmail(session.user.email ?? '玩家'); hydrateCloud(session.user.id) }
+      if (session?.user) {
+        setEnvelope(loadLocal(session.user.id) ?? { state: freshState(), revision: 0, pending: false })
+        setUserId(session.user.id); setUserEmail(session.user.email ?? '玩家')
+        void hydrateCloud(session.user.id)
+      }
     })
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) { setUserEmail(session.user.email ?? '玩家'); window.setTimeout(() => hydrateCloud(session.user.id), 0) }
-      else { setUserEmail(null); setSyncText('尚未登入') }
+      if (session?.user) {
+        setEnvelope(loadLocal(session.user.id) ?? { state: freshState(), revision: 0, pending: false })
+        setUserId(session.user.id); setUserEmail(session.user.email ?? '玩家')
+        window.setTimeout(() => { void hydrateCloud(session.user.id) }, 0)
+      } else {
+        setUserId(null); setUserEmail(null); setSyncText('尚未登入')
+        setEnvelope(loadLocal() ?? { state: freshState(), revision: 0, pending: false })
+      }
     })
     return () => listener.subscription.unsubscribe()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -72,53 +83,84 @@ export default function App() {
   const hydrateCloud = async (id: string) => {
     if (!supabase) return
     setSyncText('讀取雲端…')
+    const persist = (next: LocalEnvelope) => { saveLocal(next, id); setEnvelope(next) }
+    const useCloud = (cloud: NonNullable<Awaited<ReturnType<typeof readCloud>>>, previous: LocalEnvelope) => {
+      const differs = JSON.stringify(previous.state) !== JSON.stringify(cloud.state)
+      const preserveOffline = previous.pending && differs ? previous.state : previous.conflictState
+      const next: LocalEnvelope = {
+        state: cloud.state,
+        revision: cloud.revision,
+        pending: false,
+        ...(preserveOffline ? { conflictState: preserveOffline } : {}),
+      }
+      persist(next)
+      setSyncText(previous.pending && differs ? '已載入雲端較新存檔；本機分支已保留' : '已同步')
+    }
     try {
       const cloud = await readCloud(id)
-      const local = loadLocal() ?? envelope
+      const local = loadLocal(id) ?? { state: freshState(), revision: 0, pending: false }
       if (!cloud) {
-        if (local.pending) {
-          const saved = await writeCloud(id, local.state, 0)
-          const clean = { state: saved.state, revision: saved.revision, pending: false }; saveLocal(clean); setEnvelope(clean)
+        if (local.pending || local.revision > 0) {
+          const result = await writeCloud(id, local.state, 0)
+          if (result.status === 'saved') useCloud(result.save, local)
+          else if (result.save) useCloud(result.save, local)
+          else {
+            const retained = { ...local, pending: false, conflictState: local.state }
+            persist(retained); setSyncText('雲端存檔狀態不明；本機版本已保留')
+          }
         } else {
-          const clean = { ...local, pending: false }; saveLocal(clean); setEnvelope(clean)
+          persist({ ...local, pending: false })
+          setSyncText('尚無雲端存檔；互動後開始同步')
         }
-      } else if (cloud.revision >= local.revision) {
-        const clean = { state: cloud.state, revision: cloud.revision, pending: false }; saveLocal(clean); setEnvelope(clean)
+      } else if (local.pending && local.revision >= cloud.revision) {
+        const result = await writeCloud(id, local.state, cloud.revision)
+        if (result.status === 'saved') useCloud(result.save, local)
+        else if (result.save) useCloud(result.save, local)
+        else {
+          const retained = { ...local, revision: 0, pending: true, conflictState: local.state }
+          persist(retained); setSyncText('雲端存檔已不存在；正在安全恢復本機版本')
+        }
       } else {
-        try {
-          const saved = await writeCloud(id, local.state, cloud.revision)
-          const clean = { state: saved.state, revision: saved.revision, pending: false }; saveLocal(clean); setEnvelope(clean)
-        } catch {
-          const latest = await readCloud(id)
-          if (latest) { const clean = { state: latest.state, revision: latest.revision, pending: false }; saveLocal(clean); setEnvelope(clean) }
-          setSyncText('版本衝突：已載入較新雲端存檔')
-        }
+        useCloud(cloud, local)
       }
-      setSyncText('已同步')
     } catch (error) { setSyncText(error instanceof Error ? error.message : '同步失敗') }
   }
 
   useEffect(() => {
-    if (!userEmail || !supabase || !envelope.pending) return
-    const client = supabase
+    if (!userId || !supabase || !envelope.pending) return
     const timer = window.setTimeout(async () => {
-      const { data } = await client.auth.getUser()
-      const user = data.user
-      if (!user) return
       try {
-        const saved = await writeCloud(user.id, envelope.state, envelope.revision)
-        const clean = { state: saved.state, revision: saved.revision, pending: false }
-        saveLocal(clean); setEnvelope(clean); setSyncText('已同步')
+        const result = await writeCloud(userId, envelope.state, envelope.revision)
+        if (result.status === 'saved') {
+          const clean = { ...envelope, state: result.save.state, revision: result.save.revision, pending: false }
+          saveLocal(clean, userId); setEnvelope(clean); setSyncText('已同步')
+        } else if (result.save) {
+          const differs = JSON.stringify(envelope.state) !== JSON.stringify(result.save.state)
+          const clean: LocalEnvelope = {
+            state: result.save.state,
+            revision: result.save.revision,
+            pending: false,
+            ...(differs ? { conflictState: envelope.state } : envelope.conflictState ? { conflictState: envelope.conflictState } : {}),
+          }
+          saveLocal(clean, userId); setEnvelope(clean)
+          setSyncText(differs ? '已採用較新雲端存檔；本機分支已保留' : '存檔已同步')
+        } else {
+          const retry = { ...envelope, revision: 0, pending: true }
+          saveLocal(retry, userId); setEnvelope(retry)
+          setSyncText('雲端存檔已不存在，安全重建中…')
+        }
       } catch (error) {
-        if (error instanceof Error && error.message === 'REVISION_CONFLICT') {
-          const latest = await readCloud(user.id)
-          if (latest) { const clean = { state: latest.state, revision: latest.revision, pending: false }; saveLocal(clean); setEnvelope(clean) }
-          setSyncText('版本衝突：已採用較新存檔')
-        } else setSyncText('同步失敗，保留本機存檔')
+        setSyncText(error instanceof Error ? `同步失敗，已保留本機存檔：${error.message}` : '同步失敗，已保留本機存檔')
       }
     }, 650)
     return () => window.clearTimeout(timer)
-  }, [envelope, userEmail])
+  }, [envelope, userId])
+
+  useEffect(() => {
+    const retryPendingSave = () => setEnvelope((current) => current.pending ? { ...current } : current)
+    window.addEventListener('online', retryPendingSave)
+    return () => window.removeEventListener('online', retryPendingSave)
+  }, [])
 
   const doAction = (id: Action) => {
     if (busy) return
@@ -161,9 +203,16 @@ export default function App() {
     } catch (error) { setSyncText(error instanceof Error ? error.message : '登入失敗') }
     finally { setBusy(false) }
   }
+  const downloadConflictCopy = () => {
+    if (!envelope.conflictState) return
+    const blob = new Blob([JSON.stringify({ format: 'pocket-shensu-local-conflict-v1', state: envelope.conflictState }, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a'); link.href = url; link.download = 'pocket-shensu-local-conflict.json'; link.click()
+    URL.revokeObjectURL(url)
+  }
 
   return <main className="app-shell">
-    <header className="topbar"><div className="brand"><span className="brand-mark">S</span><div><strong>口袋沈溯</strong><small>POCKET SHENSU · MVP 0.1</small></div></div>
+    <header className="topbar"><div className="brand"><span className="brand-mark">S</span><div><strong>口袋沈溯</strong><small>POCKET SHENSU · MVP 0.2</small></div></div>
       <button className="account-chip" onClick={() => setAuthOpen(!authOpen)} disabled={!supabase} title={supabase ? '帳號與雲端同步' : '請先設定 Supabase'}>
         {userEmail ? <><Wifi size={15}/><span>{userEmail}</span></> : <><WifiOff size={15}/><span>{supabase ? '登入同步' : '本機模式'}</span></>}
       </button>
@@ -208,7 +257,7 @@ export default function App() {
     </section>
     <footer className="footnote"><span>沈溯不會因為你離線而消失。</span><span>本機存檔 {envelope.pending ? '· 有待同步資料' : '· 已保存'} </span></footer>
     {authOpen && <div className="modal-backdrop" onClick={() => setAuthOpen(false)}><section className="auth-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setAuthOpen(false)}>×</button><div className="eyebrow">CLOUD SAVE</div><h2>{userEmail ? '雲端存檔已連結' : authMode === 'login' ? '登入你的帳號' : '建立遊戲帳號'}</h2>
-      {userEmail ? <><p className="auth-description">登入後，這個帳號的親密度、服裝、收藏、劇情進度和沈溯狀態會在裝置間同步。</p><button className="primary-button" onClick={() => supabase?.auth.signOut()}><LogOut size={16}/> 登出 {userEmail}</button></> : <form onSubmit={signin}><p className="auth-description">使用 Supabase 帳號在不同裝置延續同一份存檔。</p><label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required/></label><label>密碼<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={6} required/></label><button className="primary-button" disabled={busy}><KeyRound size={16}/>{authMode === 'login' ? '登入並同步' : '建立帳號'}</button><button type="button" className="text-button" onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}>{authMode === 'login' ? '還沒有帳號？建立帳號' : '已有帳號？返回登入'}</button></form>}
+      {userEmail ? <><p className="auth-description">登入後，這個帳號的親密度、服裝、收藏、劇情進度和沈溯狀態會在裝置間同步。</p>{envelope.conflictState && <div className="conflict-copy"><b>本機離線分支已保留</b><span>雲端較新版本目前正在使用；可下載這台裝置的離線狀態備份。</span><button className="secondary-button" onClick={downloadConflictCopy}>下載本機分支 JSON</button></div>}<button className="primary-button" onClick={() => supabase?.auth.signOut()}><LogOut size={16}/> 登出 {userEmail}</button></> : <form onSubmit={signin}><p className="auth-description">使用 Supabase 帳號在不同裝置延續同一份存檔。</p><label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required/></label><label>密碼<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={6} required/></label><button className="primary-button" disabled={busy}><KeyRound size={16}/>{authMode === 'login' ? '登入並同步' : '建立帳號'}</button><button type="button" className="text-button" onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}>{authMode === 'login' ? '還沒有帳號？建立帳號' : '已有帳號？返回登入'}</button></form>}
       <small className="auth-status">{syncText}</small></section></div>}
   </main>
 }

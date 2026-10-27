@@ -17,3 +17,13 @@
 - 修正 `src/02_simulation.ts` 的時段比對：之前只檢查「目前時間晚於活動開始」，會讓上午早餐時段延伸到當日其餘時段；現在以開始與結束時間共同判斷，並正確處理跨午夜睡眠。
 - 收緊 `supabase/schema.sql` 權限：前端只可直接讀取本人存檔，所有寫入統一走 revision 檢查 RPC。
 - 驗證 `npm run build`、八個日程時間點及 24 小時離線需求上下限。
+
+## 003｜修正 Supabase 存檔競爭、權限與帳號隔離
+
+- 重寫 `supabase/schema.sql`：限定 `postgres` 擁有 `SECURITY DEFINER` RPC、空 `search_path`、完整 schema-qualified 呼叫、`auth.uid()` 身分驗證，並將 RPC 執行權限只授予 `authenticated`。
+- 清除 `game_saves` 舊政策，只保留本人 SELECT；撤銷 `authenticated` 的 INSERT／UPDATE／DELETE，所有寫入必須經 RPC。
+- 首次建立衝突改為受控 `ON CONFLICT DO NOTHING` 後讀回勝方存檔，回傳穩定的 saved/conflict JSON；更新改為單一 revision 條件 UPDATE。
+- 更新 `src/04_supabase.ts` 的 RPC 呼叫驗證與回傳型別，並檢查目前登入者 ID。
+- 更新 `src/03_storage.ts`、`src/06_App.tsx`：本機存檔按帳號分區；避免跨帳號帶入存檔；雲端 revision 較新時採用雲端版本並保留可下載的本機離線分支。
+- 更新 `README.md`、`src/07_styles.css`、`package.json`、`package-lock.json`。
+- 新增 `supabase/verify_cloud_save.sql`，供專案端核對 RLS、table/function grants、函式 owner 與 Data API 前置設定。
