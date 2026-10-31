@@ -259,7 +259,8 @@ export default function App() {
   })
 
   const calendarLabel = useMemo(() => new Intl.DateTimeFormat('zh-TW', { month: '2-digit', day: '2-digit', weekday: 'short' }).format(clock), [clock])
-  const timeLabel = useMemo(() => new Intl.DateTimeFormat('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: true }).format(clock), [clock])
+  const timeLabel = useMemo(() => `${String(clock.getHours() % 12 || 12).padStart(2, '0')}:${String(clock.getMinutes()).padStart(2, '0')}`, [clock])
+  const dayPeriod = clock.getHours() < 12 ? 'AM' : 'PM'
   const signin = async (event: React.FormEvent) => {
     event.preventDefault(); if (!supabase) return; setBusy(true)
     try {
@@ -287,14 +288,15 @@ export default function App() {
       </button>
     </header>
     <section className="game-layout">
-      <section className={`game-scene room-${state.room}`} aria-label="沈溯目前所在場景">
-        <Scene room={state.room}/>
-        <aside className="scene-dashboard" aria-label="時間、位置與沈溯狀態">
+      <aside className="scene-dashboard" aria-label="沈溯海洋系生活狀態面板">
+        <img className="dashboard-reference-art" src="/assets/ui/shensu-status-panel-020.png" alt="沈溯海洋系生活狀態面板插畫"/>
+        <div className="dashboard-content">
           <div className="dashboard-topline">
-            <div className="dashboard-identity"><span>SHENSU · 24</span><i className="status-dot" title={syncText}/></div>
-            <div className="dashboard-time"><CalendarDays size={17}/><span><small>{calendarLabel}</small><strong>{timeLabel}</strong></span></div>
-            <div className="dashboard-location"><MapPin size={19}/><span><small>目前位置</small><strong>{roomNames[state.room]}</strong></span></div>
-            <div className="dashboard-outfit"><Shirt size={18}/><span><small>穿著</small><strong>{outfitName(state.outfit)}</strong></span></div>
+            <div className="dashboard-identity"><div><strong>沈溯</strong><span>SHENSU · 24</span></div><i className="status-dot" title={syncText}/></div>
+            <div className="dashboard-time"><CalendarDays size={19}/><span><small>{calendarLabel}</small><strong><em>{dayPeriod}</em>{timeLabel}</strong></span></div>
+            <div className="dashboard-location"><MapPin size={22}/><span><small>目前位置</small><strong>{roomNames[state.room]}</strong></span></div>
+            <div className="dashboard-outfit"><Shirt size={21}/><span><small>穿著</small><strong>{outfitName(state.outfit)}</strong></span></div>
+            <div className="dashboard-note"><span>今天也要<br/>游得更快。</span><Heart size={15}/></div>
           </div>
           <div className="dashboard-stats">
             <div className="relationship dashboard-relationship"><div><Heart size={16}/><span>親密</span><small>{relationship(state.intimacy)}</small></div><strong>{state.intimacy}/100</strong><div className="heart-meter"><i style={{ width: `${state.intimacy}%` }}/></div></div>
@@ -302,7 +304,10 @@ export default function App() {
             <div className="dashboard-mood"><span><Smile size={16}/>心情</span><strong>{state.mood}</strong></div>
             <div className="dashboard-skill"><small>蝶泳熟練</small><strong>{state.swimSkill}</strong></div>
           </div>
-        </aside>
+        </div>
+      </aside>
+      <section className={`game-scene room-${state.room}`} aria-label="沈溯目前所在場景">
+        <Scene room={state.room}/>
         <Character outfit={state.outfit} mood={state.mood} autonomy={autonomy}/>
         {state.sharkPlush && state.room !== 'pool' && !['sleep', 'shark'].includes(state.outfit) && <div className="plush">🦈</div>}
         {dialogueVisible && <div className="scene-dialogue" role="status" aria-live="polite"><span>沈溯 · {state.activity}</span><p>{state.lastInteraction || speech(state.mood, state.activity)}</p></div>}
