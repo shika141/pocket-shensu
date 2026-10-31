@@ -39,7 +39,14 @@
 .game-scene.room-bedroom{--shensu-height:28%;--shensu-x:48%;--shensu-floor:2.5%;}
 .game-scene.room-kitchen{--shensu-height:28%;--shensu-x:51%;--shensu-floor:2.5%;}
 .game-scene.room-pool{--shensu-height:28%;--shensu-x:50%;--shensu-floor:2.5%;}
-.game-scene>.character{position:absolute;z-index:3;left:var(--shensu-x);bottom:var(--shensu-floor);display:block;width:auto;height:var(--shensu-height);max-width:none;object-fit:contain;object-position:center bottom;transform:translateX(-50%);transform-origin:center bottom;image-rendering:auto;filter:drop-shadow(0 4px 4px #30434d20);animation:none;}
+.game-scene>.character{position:absolute;z-index:3;left:var(--shensu-x);bottom:var(--shensu-floor);display:block;width:auto;height:var(--shensu-height);max-width:none;object-fit:contain;object-position:center bottom;transform:translateX(-50%);transform-origin:center bottom;image-rendering:auto;background:none!important;filter:drop-shadow(0 4px 4px #30434d20);animation:none;}
 .game-scene>.character.tired{transform:translateX(-50%);filter:drop-shadow(0 4px 4px #30434d18) saturate(.88);animation:none;}
 @media(max-width:780px){.game-scene{--shensu-height:28%;--shensu-x:53%;--shensu-floor:2.5%;}.game-scene.room-bedroom{--shensu-x:50%;}.game-scene.room-kitchen{--shensu-x:54%;}.game-scene.room-pool{--shensu-x:53%;}.game-scene>.character{height:var(--shensu-height);width:auto;bottom:var(--shensu-floor);transform:translateX(-50%);}.game-scene>.character.tired{transform:translateX(-50%);}}
 @media(max-width:380px){.game-scene{--shensu-height:28%;}.game-scene>.character{height:var(--shensu-height);}}
+
+/* 011｜微調人物尺寸並將獨立鯊魚娃娃移出人物範圍，避免與手持娃娃的服裝素材重疊。 */
+.game-scene{--shensu-height:32%;}
+.game-scene.room-living,.game-scene.room-bedroom,.game-scene.room-kitchen,.game-scene.room-pool{--shensu-height:32%;}
+.game-scene>.plush{left:calc(var(--shensu-x) + 14%);bottom:var(--shensu-floor);transform:none;}
+@media(max-width:780px){.game-scene{--shensu-height:32%;}.game-scene>.plush{left:calc(var(--shensu-x) + 15%);bottom:var(--shensu-floor);}}
+@media(max-width:380px){.game-scene{--shensu-height:32%;}}

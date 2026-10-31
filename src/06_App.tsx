@@ -263,7 +263,7 @@ export default function App() {
         <Scene room={state.room}/>
         <div className="scene-heading"><div><span className="eyebrow">現在的位置</span><strong>{roomNames[state.room]}</strong></div><time>{timeLabel}</time></div>
         <Character outfit={state.outfit} mood={state.mood}/>
-        {state.sharkPlush && state.room !== 'pool' && state.outfit !== 'shark' && <div className="plush">🦈</div>}
+        {state.sharkPlush && state.room !== 'pool' && !['home', 'sleep', 'shark'].includes(state.outfit) && <div className="plush">🦈</div>}
         {dialogueVisible && <div className="scene-dialogue" role="status" aria-live="polite"><span>沈溯 · {state.activity}</span><p>{state.lastInteraction || speech(state.mood, state.activity)}</p></div>}
         <aside className="scene-status" aria-label="沈溯狀態">
           <div className="scene-status-title"><span>SHENSU · 24</span><span className="status-dot" title={syncText}/></div>
