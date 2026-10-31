@@ -263,7 +263,7 @@ export default function App() {
         <Scene room={state.room}/>
         <div className="scene-heading"><div><span className="eyebrow">現在的位置</span><strong>{roomNames[state.room]}</strong></div><time>{timeLabel}</time></div>
         <Character outfit={state.outfit} mood={state.mood}/>
-        {state.sharkPlush && state.room !== 'pool' && !['home', 'sleep', 'shark'].includes(state.outfit) && <div className="plush">🦈</div>}
+        {state.sharkPlush && state.room !== 'pool' && !['sleep', 'shark'].includes(state.outfit) && <div className="plush">🦈</div>}
         {dialogueVisible && <div className="scene-dialogue" role="status" aria-live="polite"><span>沈溯 · {state.activity}</span><p>{state.lastInteraction || speech(state.mood, state.activity)}</p></div>}
         <aside className="scene-status" aria-label="沈溯狀態">
           <div className="scene-status-title"><span>SHENSU · 24</span><span className="status-dot" title={syncText}/></div>
@@ -312,11 +312,11 @@ function Scene({ room }: { room: Room }) {
   return <div className={`scene scene-${room}`}><div className="window"><div className="skyline"><i/><i/><i/><i/><i/></div></div>{room === 'kitchen' ? <><div className="counter"/><div className="table"/></> : <><div className="sofa"><i/></div><div className="coffee-table"/></>}</div>
 }
 const characterAssets: Record<Outfit, string> = {
-  casual: '/assets/character/shensu-casual-010.png',
-  home: '/assets/character/shensu-home-010.png',
-  sleep: '/assets/character/shensu-sleep-010.png',
-  training: '/assets/character/shensu-training-010.png',
-  swim: '/assets/character/shensu-swim-010.png',
-  shark: '/assets/character/shensu-shark-010.png',
+  casual: '/assets/character/shensu-casual-013.png',
+  home: '/assets/character/shensu-home-013.png',
+  sleep: '/assets/character/shensu-sleep-013.png',
+  training: '/assets/character/shensu-training-013.png',
+  swim: '/assets/character/shensu-swim-013.png',
+  shark: '/assets/character/shensu-shark-013.png',
 }
 function Character({ outfit, mood }: { outfit: Outfit; mood: GameState['mood'] }) { return <img src={characterAssets[outfit]} alt={`沈溯，${outfitName(outfit)}，${mood}`} className={`character character-${outfit} ${mood === '疲倦' ? 'tired' : ''}`} draggable={false}/> }
