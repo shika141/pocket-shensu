@@ -147,3 +147,18 @@
   .scene-status .scene-facts{padding-top:6px;margin-top:6px;font-size:7px;}
 }
 @media(max-width:380px){.scene-status{width:min(50vw,166px);padding:9px 10px 8px;}}
+
+/* 017｜響應式人物錨點與自主移動：人物比例沿用 PNG 原始長寬比，腳底固定貼齊地面。 */
+.game-scene .character-anchor{position:absolute;z-index:3;left:var(--character-x,53%);bottom:4%;height:44%;max-height:calc(100% - 30px);width:max-content;display:flex;align-items:flex-end;transform:translateX(-50%);transition:left 2.5s cubic-bezier(.35,.05,.2,1);pointer-events:none;will-change:left;}
+.game-scene .character-anchor .character{position:relative;inset:auto;display:block;width:auto;height:100%;max-width:none;max-height:100%;object-fit:contain;object-position:center bottom;transform:none;transform-origin:center bottom;background:none!important;background-image:none!important;image-rendering:auto;filter:drop-shadow(0 4px 4px #30434d25);animation:shensu-breathe 3.8s ease-in-out infinite;}
+.game-scene .character-anchor.pose-walk .character{animation:shensu-step .42s ease-in-out infinite alternate;}
+.game-scene .character-anchor.pose-sleep .character,.game-scene .character-anchor.pose-sit .character{animation:none;}
+.game-scene .character-anchor.pose-hug .character{animation:shensu-breathe 4.5s ease-in-out infinite;}
+@keyframes shensu-breathe{0%,100%{translate:0 0}50%{translate:0 -2px}}
+@keyframes shensu-step{from{translate:0 0}to{translate:0 -4px}}
+@media(max-width:780px){.game-scene .character-anchor{height:49%;bottom:3.5%;max-height:calc(100% - 22px);}}
+@media(max-width:380px){.game-scene .character-anchor{height:47%;bottom:3.5%;max-height:calc(100% - 20px);}}
+@media(prefers-reduced-motion:reduce){.game-scene .character-anchor{transition:none}.game-scene .character-anchor .character{animation:none!important}}
+
+/* 017a｜坐姿與睡姿使用現有單人圖，將錨點移至客廳沙發／臥室床面。 */
+.game-scene .character-anchor{bottom:var(--character-bottom,4%);}

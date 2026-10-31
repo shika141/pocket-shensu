@@ -6,6 +6,7 @@ import { simulate } from './02_simulation'
 import { loadLocal, saveLocal, type LocalEnvelope } from './03_storage'
 import { readCloud, supabase, writeCloud } from './04_supabase'
 import { interact, setOutfit, setRoom, type Action } from './05_interactions'
+import { autonomyDelay, initialAutonomy, nextAutonomy, visiblePose, characterAssetFor, type AutonomyContext, type AutonomyState } from './08_autonomy'
 
 type Page = 'interaction' | 'outing' | 'outfit' | 'memories'
 type InteractionKind = 'companion' | 'care'
@@ -48,7 +49,10 @@ export default function App() {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
   const [syncText, setSyncText] = useState(supabase ? '尚未登入' : '本機存檔')
   const [busy, setBusy] = useState(false)
+  const [mobileViewport, setMobileViewport] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 780px)').matches)
+  const [autonomy, setAutonomy] = useState<AutonomyState>(() => initialAutonomy(envelope.state.room, typeof window !== 'undefined' && window.matchMedia('(max-width: 780px)').matches))
   const state = envelope.state
+  const autonomyContext: AutonomyContext = { room: state.room, outfit: state.outfit, activity: state.activity, mood: state.mood, energy: state.energy, sharkPlush: state.sharkPlush, mobile: mobileViewport }
   const currentActions = actionItems[state.room][interactionKind]
   const currentOutfits = outfitItems[state.room]
 
@@ -61,6 +65,26 @@ export default function App() {
   useEffect(() => () => {
     if (dialogueTimer.current) window.clearTimeout(dialogueTimer.current)
   }, [])
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 780px)')
+    const update = () => setMobileViewport(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  useEffect(() => {
+    setAutonomy(initialAutonomy(state.room, mobileViewport, state.activity))
+  }, [state.room, mobileViewport, state.activity])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setAutonomy((current) => current.pose === 'walk'
+        ? { ...current, pose: 'stand', x: current.targetX, targetX: current.targetX, bottom: 4 }
+        : nextAutonomy(current, autonomyContext))
+    }, autonomyDelay(autonomyContext, autonomy.pose))
+    return () => window.clearTimeout(timer)
+  }, [autonomy, autonomyContext.room, autonomyContext.outfit, autonomyContext.activity, autonomyContext.mood, autonomyContext.energy, autonomyContext.sharkPlush, autonomyContext.mobile])
 
   const commit = useCallback((next: GameState) => {
     const updated = { ...next, updatedAt: Date.now() }
@@ -193,6 +217,7 @@ export default function App() {
 
   const doAction = (id: Action) => {
     if (busy) return
+    setAutonomy((current) => { const x = current.pose === 'walk' ? current.targetX : current.x; return { ...current, pose: 'stand', x, targetX: x, bottom: 4 } })
     setBusy(true); commit(interact(state, id)); showDialogue(); window.setTimeout(() => setBusy(false), 420)
   }
   const changePage = (direction: number) => {
@@ -209,11 +234,13 @@ export default function App() {
       ? state.outfit === 'swim' ? 'swim' : 'training'
       : state.outfit === 'training' || state.outfit === 'swim' ? 'home'
         : room === 'bedroom' && state.activity === '睡眠' ? 'sleep' : state.outfit
+    setAutonomy(initialAutonomy(room, mobileViewport, state.activity))
     commit(setOutfit(setRoom(state, room), outfit))
     showDialogue()
     setSelected(0)
   }
   const changeOutfit = (outfit: Outfit) => {
+    setAutonomy((current) => { const x = current.pose === 'walk' ? current.targetX : current.x; return { ...current, pose: 'stand', x, targetX: x, bottom: 4 } })
     commit(setOutfit(state, outfit))
     showDialogue()
   }
@@ -262,7 +289,7 @@ export default function App() {
       <section className={`game-scene room-${state.room}`} aria-label="沈溯目前所在場景">
         <Scene room={state.room}/>
         <div className="scene-heading"><div><span className="eyebrow">現在的位置</span><strong>{roomNames[state.room]}</strong></div><time>{timeLabel}</time></div>
-        <Character outfit={state.outfit} mood={state.mood}/>
+        <Character outfit={state.outfit} mood={state.mood} autonomy={autonomy}/>
         {state.sharkPlush && state.room !== 'pool' && !['sleep', 'shark'].includes(state.outfit) && <div className="plush">🦈</div>}
         {dialogueVisible && <div className="scene-dialogue" role="status" aria-live="polite"><span>沈溯 · {state.activity}</span><p>{state.lastInteraction || speech(state.mood, state.activity)}</p></div>}
         <aside className="scene-status" aria-label="沈溯狀態">
@@ -319,12 +346,9 @@ function Scene({ room }: { room: Room }) {
   </picture>
   return <div className={`scene scene-${room}`}><div className="window"><div className="skyline"><i/><i/><i/><i/><i/></div></div>{room === 'kitchen' ? <><div className="counter"/><div className="table"/></> : <><div className="sofa"><i/></div><div className="coffee-table"/></>}</div>
 }
-const characterAssets: Record<Outfit, string> = {
-  casual: '/assets/character/shensu-casual-013.png',
-  home: '/assets/character/shensu-home-013.png',
-  sleep: '/assets/character/shensu-sleep-013.png',
-  training: '/assets/character/shensu-training-013.png',
-  swim: '/assets/character/shensu-swim-013.png',
-  shark: '/assets/character/shensu-shark-013.png',
+function Character({ outfit, mood, autonomy }: { outfit: Outfit; mood: GameState['mood']; autonomy: AutonomyState }) {
+  const pose = visiblePose(autonomy.pose, outfit)
+  return <div className={`character-anchor pose-${pose}`} style={{ '--character-x': `${autonomy.pose === 'walk' ? autonomy.targetX : autonomy.x}%`, '--character-bottom': `${autonomy.bottom}%` } as React.CSSProperties} aria-label={`沈溯，${outfitName(outfit)}，${mood}，${pose}`} data-autonomy-pose={autonomy.pose}>
+    <img src={characterAssetFor(outfit, pose)} alt={`沈溯，${outfitName(outfit)}，${mood}`} className={`character character-${outfit} ${mood === '疲倦' ? 'tired' : ''}`} draggable={false}/>
+  </div>
 }
-function Character({ outfit, mood }: { outfit: Outfit; mood: GameState['mood'] }) { return <img src={characterAssets[outfit]} alt={`沈溯，${outfitName(outfit)}，${mood}`} className={`character character-${outfit} ${mood === '疲倦' ? 'tired' : ''}`} draggable={false}/> }

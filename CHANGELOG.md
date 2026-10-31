@@ -112,3 +112,11 @@
 - 更新 `src/03_storage.ts`、`src/06_App.tsx`：本機存檔按帳號分區；避免跨帳號帶入存檔；雲端 revision 較新時採用雲端版本並保留可下載的本機離線分支。
 - 更新 `README.md`、`src/07_styles.css`、`package.json`、`package-lock.json`。
 - 新增 `supabase/verify_cloud_save.sql`，供專案端核對 RLS、table/function grants、函式 owner 與 Data API 前置設定。
+
+## 017｜角色響應式尺寸與自主行動 MVP
+
+- 新增 `src/08_autonomy.ts`，提供獨立於長期存檔的行動狀態、場景安全行走帶、家具定位點、低頻停頓及依時間、心情、體力挑選行動。
+- 人物以桌機／手機獨立錨點移動，圖片使用自然比例 `height + width:auto`，腳底固定於場景底線；互動、換場景或換裝會立即中斷自主行動。
+- 目前可實際呈現站立、短距離 CSS 行走、鯊魚裝坐姿、居家／鯊魚裝抱娃娃、臥室睡姿；未提供相符姿勢圖的服裝會回退到同服裝站姿。睡衣站姿與各服裝走路序列仍待補。
+- 自主動作不修改 `GameState`，不觸發本機或 Supabase 存檔。
+- 新增 `docs/character-assets-017.md` 素材盤點與命名表；確認睡姿、坐姿與居家服抱娃娃已有 010 單人圖可用。睡衣站姿與完整服裝走路序列仍待補。
