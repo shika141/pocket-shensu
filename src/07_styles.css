@@ -100,3 +100,50 @@
   .game-scene.room-kitchen{--shensu-height:40%;--shensu-x:58%;}
   .scene-status{width:158px;padding:9px 10px 8px;}
 }
+
+/* 016｜參照海洋藍生活面板，狀態卡以響應式圖示與進度條呈現。 */
+.scene-status{width:clamp(260px,27vw,320px);padding:15px 17px 13px;border:1px solid #d9e5ef;border-radius:20px;background:linear-gradient(145deg,#ffffffed,#f5f9fcef);box-shadow:0 12px 32px #42647d20;}
+.scene-status-title{font-size:9px;letter-spacing:.14em;color:#74899e;}
+.scene-status .relationship{grid-template-columns:1fr auto;gap:7px 10px;margin-top:11px;padding-top:11px;border-top:1px solid #e2eaf1;}
+.scene-status .relationship>div:first-child{gap:8px;color:#526a83;font-size:12px;font-weight:600;}
+.scene-status .relationship>div:first-child svg{color:#e88496;}
+.scene-status .relationship strong{font:500 11px 'DM Mono';color:#536e8a;}
+.scene-status .relationship .heart-meter{height:8px;border:1px solid #d8e3ef;background:#edf2f7;}
+.scene-status .relationship .heart-meter i{background:linear-gradient(90deg,#f3a3ae,#e7758d);}
+.scene-status .relationship small{font-size:8px;color:#8c9eae;}
+.scene-status .stat-row{margin:10px 0;}
+.scene-status .stat-row>div:first-child{align-items:center;margin-bottom:5px;color:#526a83;font-size:10px;}
+.scene-status .stat-row>div:first-child span{display:flex;align-items:center;gap:7px;font-size:10px;}
+.scene-status .stat-row>div:first-child svg{color:#6d91b8;stroke-width:1.8;}
+.scene-status .stat-row b{font:500 10px 'DM Mono';color:#536e8a;}
+.scene-status .bar{height:8px;border:1px solid #d8e3ef;background:#edf2f7;}
+.scene-status .bar i{background:linear-gradient(90deg,#709bc9,#a9c7e3);}
+.scene-status .stat-silver .bar i{background:linear-gradient(90deg,#8298aa,#b3c2cf);}
+.scene-status .stat-teal .bar i{background:linear-gradient(90deg,#75aaa8,#a6cfca);}
+.mood-row{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid #e2eaf1;color:#526a83;font-size:10px;}
+.mood-row>span{display:flex;align-items:center;gap:7px;}
+.mood-row svg{color:#6d91b8;stroke-width:1.8;}
+.mood-row strong{padding:4px 9px;border-radius:999px;background:#eaf2f7;color:#59728b;font-size:9px;font-weight:600;}
+.scene-status .scene-facts{justify-content:flex-start;padding-top:8px;margin-top:8px;border-top:1px solid #e2eaf1;font-size:8px;color:#8295a7;}
+.scene-status .scene-facts b{display:inline;margin:0 0 0 4px;color:#536e8a;font-family:'DM Mono';}
+@media(max-width:780px){
+  .scene-status{width:min(48vw,190px);min-width:0;padding:10px 11px 9px;border-radius:16px;}
+  .scene-status-title{font-size:8px;}
+  .scene-status .relationship{gap:5px 7px;margin-top:8px;padding-top:8px;}
+  .scene-status .relationship>div:first-child{gap:6px;font-size:9px;}
+  .scene-status .relationship>div:first-child svg{width:13px;height:13px;}
+  .scene-status .relationship strong{font-size:8px;}
+  .scene-status .relationship .heart-meter{height:6px;}
+  .scene-status .relationship small{font-size:7px;}
+  .scene-status .stat-row{margin:8px 0;}
+  .scene-status .stat-row>div:first-child,.scene-status .stat-row>div:first-child span{font-size:8px;}
+  .scene-status .stat-row>div:first-child span{gap:5px;}
+  .scene-status .stat-row>div:first-child svg{width:12px;height:12px;}
+  .scene-status .stat-row b{font-size:8px;}
+  .scene-status .bar{height:6px;}
+  .mood-row{margin-top:8px;padding-top:7px;font-size:8px;}
+  .mood-row svg{width:12px;height:12px;}
+  .mood-row strong{padding:3px 7px;font-size:8px;}
+  .scene-status .scene-facts{padding-top:6px;margin-top:6px;font-size:7px;}
+}
+@media(max-width:380px){.scene-status{width:min(50vw,166px);padding:9px 10px 8px;}}

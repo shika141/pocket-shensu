@@ -1,6 +1,6 @@
 // 06｜MVP 遊戲主畫面：人物場景、狀態欄、情境互動、登入與同步狀態。
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Heart, KeyRound, LogOut, Wifi, WifiOff } from 'lucide-react'
+import { Droplets, Heart, KeyRound, LogOut, Moon, Smile, Utensils, Wifi, WifiOff } from 'lucide-react'
 import { freshState, relationship, ROOMS, type GameState, type Outfit, type Room } from './01_gameData'
 import { simulate } from './02_simulation'
 import { loadLocal, saveLocal, type LocalEnvelope } from './03_storage'
@@ -267,9 +267,10 @@ export default function App() {
         {dialogueVisible && <div className="scene-dialogue" role="status" aria-live="polite"><span>沈溯 · {state.activity}</span><p>{state.lastInteraction || speech(state.mood, state.activity)}</p></div>}
         <aside className="scene-status" aria-label="沈溯狀態">
           <div className="scene-status-title"><span>SHENSU · 24</span><span className="status-dot" title={syncText}/></div>
-          <div className="relationship"><div><Heart size={15}/><span>{relationship(state.intimacy)}</span></div><strong>{state.intimacy}/100</strong><div className="heart-meter"><i style={{ width: `${state.intimacy}%` }}/></div><small>親密度</small></div>
+          <div className="relationship"><div><Heart size={16}/><span>親密</span></div><strong>{state.intimacy}/100</strong><div className="heart-meter"><i style={{ width: `${state.intimacy}%` }}/></div><small>{relationship(state.intimacy)}</small></div>
           <Stat label="飽足" value={state.hunger} color="blue"/><Stat label="體力" value={state.energy} color="silver"/><Stat label="清潔" value={state.cleanliness} color="teal"/>
-          <div className="scene-facts"><span>心情 <b>{state.mood}</b></span><span>蝶泳熟練 <b>{state.swimSkill}</b></span></div>
+          <div className="mood-row"><span><Smile size={15}/>心情</span><strong>{state.mood}</strong></div>
+          <div className="scene-facts"><span>蝶泳熟練 <b>{state.swimSkill}</b></span></div>
         </aside>
       </section>
       <section className="control-panel" aria-label="遊戲選單">
@@ -292,7 +293,10 @@ export default function App() {
   </main>
 }
 
-function Stat({ label, value, color }: { label: string; value: number; color: string }) { return <div className="stat-row"><div><span>{label}</span><b>{value}%</b></div><div className="bar"><i className={color} style={{ width: `${value}%` }}/></div></div> }
+function Stat({ label, value, color }: { label: string; value: number; color: string }) {
+  const Icon = label === '飽足' ? Utensils : label === '體力' ? Moon : Droplets
+  return <div className={`stat-row stat-${color}`}><div><span><Icon size={15}/>{label}</span><b>{value}%</b></div><div className="bar"><i style={{ width: `${value}%` }}/></div></div>
+}
 function outfitIcon(outfit: Outfit) { return ({ casual: '◒', home: '⌂', training: '⌁', swim: '≈', sleep: '☾', shark: '🦈' } as Record<Outfit, string>)[outfit] }
 function outfitName(outfit: Outfit) {
   return ({ casual: '連帽外套', home: '居家服', training: '訓練外套', swim: '競技泳裝', sleep: '睡衣', shark: '灰藍鯊魚裝' } as Record<Outfit, string>)[outfit]
