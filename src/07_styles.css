@@ -162,3 +162,66 @@
 
 /* 017a｜坐姿與睡姿使用現有單人圖，將錨點移至客廳沙發／臥室床面。 */
 .game-scene .character-anchor{bottom:var(--character-bottom,4%);}
+
+/* 018｜時間、位置、服裝與數值整合為參考圖風格的動態海洋手帳面板。 */
+.scene-dashboard{position:absolute;z-index:6;top:13px;left:13px;right:13px;padding:12px 16px 13px;border:1px solid #d3e1ef;border-radius:19px;background:linear-gradient(125deg,#fffefbf2,#f5f9fff0 58%,#eff7fcf2);box-shadow:0 8px 24px #4667871a,inset 0 0 0 3px #ffffffa8;backdrop-filter:blur(10px);color:#405c7d;}
+.scene-dashboard:before{content:"";position:absolute;inset:5px;border:1px solid #d9e5f0;border-radius:14px;pointer-events:none;}
+.dashboard-topline{position:relative;display:grid;grid-template-columns:1fr 1.15fr 1.7fr 1.1fr;align-items:center;gap:12px;padding-bottom:9px;border-bottom:1px solid #dbe7f1;}
+.dashboard-identity{display:flex;align-items:center;gap:9px;font:500 9px 'DM Mono';letter-spacing:.12em;color:#8297ae;}
+.dashboard-identity .status-dot{flex:none;margin:0;}
+.dashboard-time,.dashboard-location,.dashboard-outfit{min-width:0;display:flex;align-items:center;gap:8px;color:#597899;}
+.dashboard-time svg,.dashboard-location svg,.dashboard-outfit svg{flex:none;color:#789bc0;stroke-width:1.7;}
+.dashboard-time span,.dashboard-location span,.dashboard-outfit span{min-width:0;display:flex;flex-direction:column;gap:2px;}
+.dashboard-time small,.dashboard-location small,.dashboard-outfit small{font:8px 'DM Mono';letter-spacing:.08em;color:#91a3b7;}
+.dashboard-time strong,.dashboard-location strong,.dashboard-outfit strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:600;color:#455f7d;}
+.dashboard-time strong{font:500 13px 'DM Mono';letter-spacing:.04em;}
+.dashboard-stats{position:relative;display:grid;grid-template-columns:1.35fr repeat(3,1fr) 1fr .68fr;align-items:center;gap:12px;padding-top:10px;}
+.dashboard-relationship{min-width:0;display:grid;grid-template-columns:1fr auto;gap:5px 8px;align-items:center;}
+.dashboard-relationship>div:first-child{min-width:0;display:flex;align-items:center;gap:6px;color:#526f91;font-size:10px;font-weight:600;}
+.dashboard-relationship>div:first-child svg{flex:none;color:#e7879b;}
+.dashboard-relationship>div:first-child small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#9aabba;font-size:8px;font-weight:400;}
+.dashboard-relationship>strong{font:500 10px 'DM Mono';color:#526d8b;}
+.dashboard-relationship .heart-meter{grid-column:1/-1;height:7px;border:1px solid #d5e1ee;background:#edf2f7;}
+.dashboard-stats .stat-row{min-width:0;margin:0;}
+.dashboard-stats .stat-row>div:first-child{align-items:center;margin-bottom:5px;color:#526f91;font-size:9px;}
+.dashboard-stats .stat-row>div:first-child span{gap:5px;font-size:9px;white-space:nowrap;}
+.dashboard-stats .stat-row>div:first-child svg{width:13px;height:13px;color:#7397bd;stroke-width:1.8;}
+.dashboard-stats .stat-row b{font:500 9px 'DM Mono';color:#526d8b;}
+.dashboard-stats .bar{height:7px;border:1px solid #d5e1ee;background:#edf2f7;}
+.dashboard-mood{min-width:0;display:flex;flex-direction:column;gap:6px;color:#526f91;font-size:9px;}
+.dashboard-mood>span{display:flex;align-items:center;gap:5px;white-space:nowrap;}
+.dashboard-mood svg{width:14px;height:14px;color:#7397bd;stroke-width:1.8;}
+.dashboard-mood strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;font-weight:600;color:#526d8b;}
+.dashboard-skill{display:flex;flex-direction:column;gap:5px;color:#8b9db0;}
+.dashboard-skill small{font-size:8px;white-space:nowrap;}
+.dashboard-skill strong{font:500 12px 'DM Mono';color:#526d8b;}
+@media(max-width:780px){
+  .scene-dashboard{top:8px;left:8px;right:8px;padding:10px 10px 9px;border-radius:15px;}
+  .scene-dashboard:before{inset:4px;border-radius:11px;}
+  .dashboard-topline{grid-template-columns:1fr 1fr;gap:7px 9px;padding-bottom:7px;}
+  .dashboard-identity{font-size:8px;}
+  .dashboard-time,.dashboard-location,.dashboard-outfit{gap:6px;}
+  .dashboard-time svg,.dashboard-location svg,.dashboard-outfit svg{width:14px;height:14px;}
+  .dashboard-time small,.dashboard-location small,.dashboard-outfit small{font-size:7px;}
+  .dashboard-time strong{font-size:11px;}
+  .dashboard-location strong,.dashboard-outfit strong{font-size:9px;}
+  .dashboard-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 10px;padding-top:8px;}
+  .dashboard-relationship{gap:4px 5px;}
+  .dashboard-relationship>div:first-child{gap:4px;font-size:8px;}
+  .dashboard-relationship>div:first-child svg{width:13px;height:13px;}
+  .dashboard-relationship>div:first-child small{font-size:7px;}
+  .dashboard-relationship>strong{font-size:8px;}
+  .dashboard-relationship .heart-meter{height:5px;}
+  .dashboard-stats .stat-row>div:first-child{margin-bottom:3px;font-size:8px;}
+  .dashboard-stats .stat-row>div:first-child span{gap:4px;font-size:8px;}
+  .dashboard-stats .stat-row>div:first-child svg{width:11px;height:11px;}
+  .dashboard-stats .stat-row b{font-size:8px;}
+  .dashboard-stats .bar{height:5px;}
+  .dashboard-mood{gap:4px;font-size:8px;}
+  .dashboard-mood svg{width:12px;height:12px;}
+  .dashboard-mood strong{font-size:8px;}
+  .dashboard-skill{gap:3px;}
+  .dashboard-skill small{font-size:7px;}
+  .dashboard-skill strong{font-size:10px;}
+}
+@media(max-width:380px){.scene-dashboard{left:6px;right:6px;padding:8px 8px 7px}.dashboard-topline{gap:6px 7px}.dashboard-stats{gap:7px 7px}}

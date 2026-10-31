@@ -1,6 +1,6 @@
 // 06｜MVP 遊戲主畫面：人物場景、狀態欄、情境互動、登入與同步狀態。
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Droplets, Heart, KeyRound, LogOut, Moon, Smile, Utensils, Wifi, WifiOff } from 'lucide-react'
+import { CalendarDays, Droplets, Heart, KeyRound, LogOut, MapPin, Moon, Shirt, Smile, Utensils, Wifi, WifiOff } from 'lucide-react'
 import { freshState, relationship, ROOMS, type GameState, type Outfit, type Room } from './01_gameData'
 import { simulate } from './02_simulation'
 import { loadLocal, saveLocal, type LocalEnvelope } from './03_storage'
@@ -258,7 +258,8 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const timeLabel = useMemo(() => new Intl.DateTimeFormat('zh-TW', { hour: '2-digit', minute: '2-digit', weekday: 'short' }).format(clock), [clock])
+  const calendarLabel = useMemo(() => new Intl.DateTimeFormat('zh-TW', { month: '2-digit', day: '2-digit', weekday: 'short' }).format(clock), [clock])
+  const timeLabel = useMemo(() => new Intl.DateTimeFormat('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: true }).format(clock), [clock])
   const signin = async (event: React.FormEvent) => {
     event.preventDefault(); if (!supabase) return; setBusy(true)
     try {
@@ -288,17 +289,23 @@ export default function App() {
     <section className="game-layout">
       <section className={`game-scene room-${state.room}`} aria-label="沈溯目前所在場景">
         <Scene room={state.room}/>
-        <div className="scene-heading"><div><span className="eyebrow">現在的位置</span><strong>{roomNames[state.room]}</strong></div><time>{timeLabel}</time></div>
+        <aside className="scene-dashboard" aria-label="時間、位置與沈溯狀態">
+          <div className="dashboard-topline">
+            <div className="dashboard-identity"><span>SHENSU · 24</span><i className="status-dot" title={syncText}/></div>
+            <div className="dashboard-time"><CalendarDays size={17}/><span><small>{calendarLabel}</small><strong>{timeLabel}</strong></span></div>
+            <div className="dashboard-location"><MapPin size={19}/><span><small>目前位置</small><strong>{roomNames[state.room]}</strong></span></div>
+            <div className="dashboard-outfit"><Shirt size={18}/><span><small>穿著</small><strong>{outfitName(state.outfit)}</strong></span></div>
+          </div>
+          <div className="dashboard-stats">
+            <div className="relationship dashboard-relationship"><div><Heart size={16}/><span>親密</span><small>{relationship(state.intimacy)}</small></div><strong>{state.intimacy}/100</strong><div className="heart-meter"><i style={{ width: `${state.intimacy}%` }}/></div></div>
+            <Stat label="飽足" value={state.hunger} color="blue"/><Stat label="體力" value={state.energy} color="silver"/><Stat label="清潔" value={state.cleanliness} color="teal"/>
+            <div className="dashboard-mood"><span><Smile size={16}/>心情</span><strong>{state.mood}</strong></div>
+            <div className="dashboard-skill"><small>蝶泳熟練</small><strong>{state.swimSkill}</strong></div>
+          </div>
+        </aside>
         <Character outfit={state.outfit} mood={state.mood} autonomy={autonomy}/>
         {state.sharkPlush && state.room !== 'pool' && !['sleep', 'shark'].includes(state.outfit) && <div className="plush">🦈</div>}
         {dialogueVisible && <div className="scene-dialogue" role="status" aria-live="polite"><span>沈溯 · {state.activity}</span><p>{state.lastInteraction || speech(state.mood, state.activity)}</p></div>}
-        <aside className="scene-status" aria-label="沈溯狀態">
-          <div className="scene-status-title"><span>SHENSU · 24</span><span className="status-dot" title={syncText}/></div>
-          <div className="relationship"><div><Heart size={16}/><span>親密</span></div><strong>{state.intimacy}/100</strong><div className="heart-meter"><i style={{ width: `${state.intimacy}%` }}/></div><small>{relationship(state.intimacy)}</small></div>
-          <Stat label="飽足" value={state.hunger} color="blue"/><Stat label="體力" value={state.energy} color="silver"/><Stat label="清潔" value={state.cleanliness} color="teal"/>
-          <div className="mood-row"><span><Smile size={15}/>心情</span><strong>{state.mood}</strong></div>
-          <div className="scene-facts"><span>蝶泳熟練 <b>{state.swimSkill}</b></span></div>
-        </aside>
       </section>
       <section className="control-panel" aria-label="遊戲選單">
         <nav className="category-tabs" role="tablist" aria-label="遊戲分類">{pages.map((item) => <button role="tab" aria-selected={page === item} key={item} className={page === item ? 'active' : ''} onClick={() => { setPage(item); setSelected(0) }}><span>{pageLabels[item]}</span></button>)}</nav>
