@@ -1,35 +1,41 @@
-// 06｜MVP 遊戲主畫面：跨螢幕蛋型機身、操作選單、登入與同步狀態。
+// 06｜MVP 遊戲主畫面：人物場景、狀態欄、情境互動、登入與同步狀態。
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, Heart, KeyRound, LogOut, Wifi, WifiOff } from 'lucide-react'
+import { Heart, KeyRound, LogOut, Wifi, WifiOff } from 'lucide-react'
 import { freshState, relationship, ROOMS, type GameState, type Outfit, type Room } from './01_gameData'
 import { simulate } from './02_simulation'
 import { loadLocal, saveLocal, type LocalEnvelope } from './03_storage'
 import { readCloud, supabase, writeCloud } from './04_supabase'
 import { interact, setOutfit, setRoom, type Action } from './05_interactions'
 
-type Page = 'care' | 'life' | 'training' | 'places' | 'closet' | 'memories'
-const pages: Page[] = ['care', 'life', 'training', 'places', 'closet', 'memories']
-const pageLabels: Record<Page, string> = { care: '陪伴互動', life: '日常照顧', training: '游泳訓練', places: '生活場景', closet: '更換服裝', memories: '回憶圖鑑' }
-const pageShortLabels: Record<Page, string> = { care: '陪伴', life: '照顧', training: '訓練', places: '場景', closet: '服裝', memories: '回憶' }
-const actionGroups: Record<'care' | 'life' | 'training', { id: Action; label: string; hint: string; icon: string }[]> = {
-  care: [
-    { id: 'comfort', label: '安慰沈溯', hint: '陪他待一會兒・親密 +2', icon: '♡' },
-    { id: 'headpat', label: '摸摸頭', hint: '看看他今天的反應・親密 +1', icon: '⌁' },
-    { id: 'plush', label: '送鯊魚娃娃', hint: '解鎖他的心頭好', icon: '🦈' },
-  ],
-  life: [
-    { id: 'feed', label: '準備餐點', hint: '飽足 +30', icon: '＋' },
-    { id: 'rest', label: '邀請休息', hint: '體力 +24', icon: '☾' },
-    { id: 'clean', label: '提醒洗澡', hint: '清潔 +35', icon: '◌' },
-    { id: 'shark', label: '鯊魚裝事件', hint: '低落時有機會觸發特別回憶', icon: '✦' },
-  ],
-  training: [{ id: 'watch', label: '看比賽錄影', hint: '熟練 +1・親密 +2', icon: '≈' }],
+type Page = 'interaction' | 'outing' | 'outfit' | 'memories'
+type InteractionKind = 'companion' | 'care'
+const pages: Page[] = ['interaction', 'outing', 'outfit', 'memories']
+const pageLabels: Record<Page, string> = { interaction: '互動', outing: '出門', outfit: '服裝', memories: '回憶' }
+const actionItems: Record<Room, Record<InteractionKind, { id: Action; label: string; hint: string; icon: string }[]>> = {
+  living: {
+    companion: [{ id: 'comfort', label: '陪他坐一會兒', hint: '親密 +2', icon: '♡' }, { id: 'headpat', label: '摸摸頭', hint: '親密 +1', icon: '⌁' }, { id: 'plush', label: '一起抱鯊魚娃娃', hint: '看看他的反應', icon: '🦈' }],
+    care: [{ id: 'feed', label: '準備餐點', hint: '飽足 +30', icon: '＋' }, { id: 'rest', label: '邀請休息', hint: '體力 +24', icon: '☾' }, { id: 'watch', label: '陪他看比賽錄影', hint: '熟練 +1・親密 +2', icon: '≈' }, { id: 'clean', label: '提醒洗澡', hint: '清潔 +35', icon: '◌' }],
+  },
+  bedroom: {
+    companion: [{ id: 'comfort', label: '安靜陪在身邊', hint: '親密 +2', icon: '♡' }, { id: 'headpat', label: '摸摸頭', hint: '親密 +1', icon: '⌁' }, { id: 'plush', label: '把鯊魚娃娃遞給他', hint: '看看他的反應', icon: '🦈' }],
+    care: [{ id: 'rest', label: '讓他好好休息', hint: '體力 +24', icon: '☾' }, { id: 'clean', label: '提醒洗澡', hint: '清潔 +35', icon: '◌' }],
+  },
+  kitchen: {
+    companion: [{ id: 'comfort', label: '陪他吃飯', hint: '親密 +2', icon: '♡' }, { id: 'headpat', label: '摸摸頭', hint: '親密 +1', icon: '⌁' }],
+    care: [{ id: 'feed', label: '準備餐點', hint: '飽足 +30', icon: '＋' }, { id: 'rest', label: '吃完休息一下', hint: '體力 +24', icon: '☾' }],
+  },
+  pool: {
+    companion: [{ id: 'watch', label: '在池邊看他訓練', hint: '熟練 +1・親密 +2', icon: '≈' }, { id: 'comfort', label: '訓練後陪他聊聊', hint: '親密 +2', icon: '♡' }],
+    care: [{ id: 'rest', label: '提醒他補充體力', hint: '體力 +24', icon: '☾' }, { id: 'feed', label: '遞上訓練餐點', hint: '飽足 +30', icon: '＋' }],
+  },
 }
+const outfitItems: Record<Room, Outfit[]> = { living: ['home', 'shark'], bedroom: ['home', 'shark'], kitchen: ['home', 'shark'], pool: ['training'] }
 const roomNames: Record<Room, string> = { living: '高樓公寓・客廳', bedroom: '高樓公寓・臥室', kitchen: '高樓公寓・廚房', pool: '曜川競技泳池' }
 
 export default function App() {
   const [envelope, setEnvelope] = useState<LocalEnvelope>(() => loadLocal() ?? { state: freshState(), revision: 0, pending: false })
-  const [page, setPage] = useState<Page>('care')
+  const [page, setPage] = useState<Page>('interaction')
+  const [interactionKind, setInteractionKind] = useState<InteractionKind>('companion')
   const [selected, setSelected] = useState(0)
   const [clock, setClock] = useState(new Date())
   const [userEmail, setUserEmail] = useState<string | null>(null)
@@ -41,6 +47,8 @@ export default function App() {
   const [syncText, setSyncText] = useState(supabase ? '尚未登入' : '本機存檔')
   const [busy, setBusy] = useState(false)
   const state = envelope.state
+  const currentActions = actionItems[state.room][interactionKind]
+  const currentOutfits = outfitItems[state.room]
 
   const commit = useCallback((next: GameState) => {
     const updated = { ...next, updatedAt: Date.now() }
@@ -180,9 +188,14 @@ export default function App() {
     setPage(pages[(index + direction + pages.length) % pages.length]); setSelected(0)
   }
   const confirm = () => {
-    if (page === 'care' || page === 'life' || page === 'training') doAction(actionGroups[page][selected % actionGroups[page].length].id)
-    else if (page === 'places') { const room = ROOMS[selected % ROOMS.length].id; commit(setRoom(state, room)) }
-    else if (page === 'closet') { const outfits: Outfit[] = ['home', 'training', 'shark']; commit(setOutfit(state, outfits[selected % outfits.length])) }
+    if (page === 'interaction') doAction(currentActions[selected % currentActions.length].id)
+    else if (page === 'outing') changeRoom(ROOMS[selected % ROOMS.length].id)
+    else if (page === 'outfit') commit(setOutfit(state, currentOutfits[selected % currentOutfits.length]))
+  }
+  const changeRoom = (room: Room) => {
+    const outfit: Outfit = room === 'pool' ? 'training' : state.outfit === 'training' ? 'home' : state.outfit
+    commit(setOutfit(setRoom(state, room), outfit))
+    setSelected(0)
   }
 
   useEffect(() => {
@@ -220,43 +233,36 @@ export default function App() {
   }
 
   return <main className="app-shell">
-    <header className="topbar"><div className="brand"><span className="brand-mark">S</span><div><strong>口袋沈溯</strong><small>POCKET SHENSU · MVP 0.3</small></div></div>
+    <header className="topbar"><div className="brand"><span className="brand-mark">S</span><div><strong>口袋沈溯</strong><small>POCKET SHENSU · MVP 0.4</small></div></div>
       <button className="account-chip" onClick={() => setAuthOpen(!authOpen)} disabled={!supabase} title={supabase ? '帳號與雲端同步' : '請先設定 Supabase'}>
         {userEmail ? <><Wifi size={15}/><span>{userEmail}</span></> : <><WifiOff size={15}/><span>{supabase ? '登入同步' : '本機模式'}</span></>}
       </button>
     </header>
     <section className="game-layout">
-      <section className="device-area" aria-label="口袋沈溯遊戲機">
-        <div className="device-screw screw-one"/><div className="device-screw screw-two"/>
-        <div className="device-logo"><span>SHENSU</span><i>✦</i></div>
-        <div className={`egg-screen room-${state.room}`}>
-          <div className="screen-top"><span>{roomNames[state.room]}</span><span>{timeLabel}</span></div>
-          <div className="screen-hud" aria-label="沈溯目前狀態">
-            <div className="hud-relationship"><Heart size={10}/><span>{relationship(state.intimacy)}</span><b>{state.intimacy}/100</b><i><em style={{ width: `${state.intimacy}%` }}/></i></div>
-            <div className="hud-stats"><Stat label="飽足" value={state.hunger} color="blue"/><Stat label="體力" value={state.energy} color="silver"/><Stat label="清潔" value={state.cleanliness} color="teal"/></div>
-          </div>
-          <div className="pixel-scene">
-            <Scene room={state.room}/><Character outfit={state.outfit} mood={state.mood}/>
-            {state.sharkPlush && state.room !== 'pool' && <div className="plush">🦈</div>}
-            <div className="speech">{speech(state.mood, state.activity)}</div>
-          </div>
-          <div className="screen-bottom"><span>{state.activity}</span><span>{state.mood}</span></div>
-        </div>
-        <div className="device-bottom"><div className="screen-label">POCKET SHENSU</div><div className="button-row">
-          <button aria-label="上一頁" onClick={() => changePage(-1)}><ArrowLeft size={18}/></button>
-          <button className="confirm-button" aria-label="確認" onClick={confirm}><Heart size={19}/></button>
-          <button aria-label="下一頁" onClick={() => changePage(1)}><ArrowRight size={18}/></button>
-        </div><div className="button-labels"><span>PREV</span><span>OK</span><span>NEXT</span></div></div>
-        <div className="device-screw screw-three"/><div className="device-screw screw-four"/>
+      <section className={`game-scene room-${state.room}`} aria-label="沈溯目前所在場景">
+        <Scene room={state.room}/>
+        <div className="scene-heading"><div><span className="eyebrow">現在的位置</span><strong>{roomNames[state.room]}</strong></div><time>{timeLabel}</time></div>
+        <Character outfit={state.outfit} mood={state.mood}/>
+        {state.sharkPlush && state.room !== 'pool' && <div className="plush">🦈</div>}
+        <div className="scene-dialogue"><span>沈溯 · {state.activity}</span><p>{state.lastInteraction || speech(state.mood, state.activity)}</p></div>
+        <aside className="scene-status" aria-label="沈溯狀態">
+          <div className="scene-status-title"><span>SHENSU · 24</span><span className="status-dot" title={syncText}/></div>
+          <div className="relationship"><div><Heart size={15}/><span>{relationship(state.intimacy)}</span></div><strong>{state.intimacy}/100</strong><div className="heart-meter"><i style={{ width: `${state.intimacy}%` }}/></div><small>親密度</small></div>
+          <Stat label="飽足" value={state.hunger} color="blue"/><Stat label="體力" value={state.energy} color="silver"/><Stat label="清潔" value={state.cleanliness} color="teal"/>
+          <div className="scene-facts"><span>心情 <b>{state.mood}</b></span><span>蝶泳熟練 <b>{state.swimSkill}</b></span></div>
+        </aside>
       </section>
-      <section className="control-panel">
-        <div className="category-tabs" role="tablist" aria-label="遊戲選單分類">{pages.map((item, index) => <button role="tab" aria-selected={page === item} key={item} className={page === item ? 'active' : ''} onClick={() => { setPage(item); setSelected(0) }}><span>{pageShortLabels[item]}</span><small>0{index + 1}</small></button>)}</div>
-        <div className="panel-header"><div><div className="eyebrow">SHENSU · 24　·　{timeLabel}</div><h2>{pageLabels[page]}</h2></div><div className="status-dot" title={syncText}/></div>
-        {(page === 'care' || page === 'life' || page === 'training') && <div className="menu-list">{actionGroups[page].map((row, index) => <button key={row.id} className={`menu-row ${selected % actionGroups[page].length === index ? 'selected' : ''}`} onMouseEnter={() => setSelected(index)} onClick={() => doAction(row.id)}><span className="row-icon">{row.icon}</span><span className="row-copy"><b>{row.label}</b><small>{row.hint}</small></span><span className="row-arrow">›</span></button>)}</div>}
-        {page === 'places' && <div className="menu-list">{ROOMS.map((room, index) => <button key={room.id} className={`menu-row ${state.room === room.id ? 'selected' : ''}`} onMouseEnter={() => setSelected(index)} onClick={() => commit(setRoom(state, room.id))}><span className="row-icon">{room.icon}</span><span className="row-copy"><b>{room.name}</b><small>{state.room === room.id ? '目前所在位置' : '切換場景'}</small></span><span className="row-arrow">›</span></button>)}<p className="panel-note">訓練、用餐與睡眠時段會依作息前往對應地點。</p></div>}
-        {page === 'closet' && <div className="closet-grid">{(['home','training','shark'] as Outfit[]).map((outfit, index) => <button className={`outfit-card ${state.outfit === outfit ? 'selected' : ''}`} key={outfit} onMouseEnter={() => setSelected(index)} onClick={() => commit(setOutfit(state, outfit))}><span>{outfit === 'shark' ? '🦈' : outfit === 'training' ? '🏊' : '◒'}</span><b>{outfitName(outfit)}</b><small>{state.outfit === outfit ? '穿著中' : '點擊換上'}</small></button>)}</div>}
-        {page === 'memories' && <div className="memory-view">{state.unlockedMemories.length ? <div className="memory-card"><div className="memory-art">🦈<span>✦</span></div><b>安靜等你</b><p>沈溯穿著灰藍鯊魚裝，抱著娃娃坐在沙發上。</p><small>特別事件 · 已收錄</small></div> : <div className="empty-memory"><div>✧</div><b>回憶還是空白的</b><p>陪伴沈溯、參與日常，慢慢把重要時刻留在這裡。</p><button onClick={() => { setPage('care'); setSelected(0) }}>看看今天的他</button></div>}</div>}
-        <div className="panel-footer"><span>{syncText}</span><span>← → 切換 · ↑ ↓ 選擇 · Enter 確認</span></div>
+      <section className="control-panel" aria-label="遊戲選單">
+        <nav className="category-tabs" role="tablist" aria-label="遊戲分類">{pages.map((item) => <button role="tab" aria-selected={page === item} key={item} className={page === item ? 'active' : ''} onClick={() => { setPage(item); setSelected(0) }}><span>{pageLabels[item]}</span></button>)}</nav>
+        <div className="panel-header"><div><div className="eyebrow">{state.lastInteraction}</div><h2>{pageLabels[page]}<span className="current-place">{roomNames[state.room]}</span></h2></div></div>
+        {page === 'interaction' && <>
+          <div className="sub-tabs" role="tablist" aria-label="互動類型"><button role="tab" aria-selected={interactionKind === 'companion'} className={interactionKind === 'companion' ? 'active' : ''} onClick={() => { setInteractionKind('companion'); setSelected(0) }}>陪伴</button><button role="tab" aria-selected={interactionKind === 'care'} className={interactionKind === 'care' ? 'active' : ''} onClick={() => { setInteractionKind('care'); setSelected(0) }}>照顧</button></div>
+          <div className="menu-list">{currentActions.map((row, index) => <button key={row.id} className={`menu-row ${selected % currentActions.length === index ? 'selected' : ''}`} onMouseEnter={() => setSelected(index)} onClick={() => doAction(row.id)}><span className="row-icon">{row.icon}</span><span className="row-copy"><b>{row.label}</b><small>{row.hint}</small></span><span className="row-arrow">›</span></button>)}</div>
+        </>}
+        {page === 'outing' && <div className="menu-list room-list">{ROOMS.map((room, index) => <button key={room.id} className={`menu-row ${state.room === room.id ? 'selected' : ''}`} onMouseEnter={() => setSelected(index)} onClick={() => changeRoom(room.id)}><span className="row-icon">{room.icon}</span><span className="row-copy"><b>{room.name}</b><small>{state.room === room.id ? '沈溯目前在這裡' : room.id === 'pool' ? '前往曜川競技游泳隊' : '回到沈溯的公寓'}</small></span><span className="row-arrow">›</span></button>)}</div>}
+        {page === 'outfit' && <div className="closet-grid">{currentOutfits.map((outfit, index) => <button className={`outfit-card ${state.outfit === outfit ? 'selected' : ''}`} key={outfit} onMouseEnter={() => setSelected(index)} onClick={() => commit(setOutfit(state, outfit))}><span>{outfit === 'shark' ? '🦈' : outfit === 'training' ? '🏊' : '◒'}</span><b>{outfitName(outfit)}</b><small>{state.outfit === outfit ? '穿著中' : '換上這套'}</small></button>)}</div>}
+        {page === 'memories' && <div className="memory-view">{state.unlockedMemories.length ? <div className="memory-card"><div className="memory-art">🦈<span>✦</span></div><b>安靜等你</b><p>沈溯穿著灰藍鯊魚裝，抱著娃娃坐在沙發上。</p><small>特別事件 · 已收錄</small></div> : <div className="empty-memory"><div>✧</div><b>回憶還是空白的</b><p>陪伴沈溯、參與日常，重要時刻會慢慢留在這裡。</p><button onClick={() => { setPage('interaction'); setInteractionKind('companion'); setSelected(0) }}>陪他待一會兒</button></div>}</div>}
+        <div className="panel-footer"><span>{syncText}</span><span>← → 分類 · ↑ ↓ 選擇 · Enter 確認</span></div>
       </section>
     </section>
     <footer className="footnote"><span>沈溯不會因為你離線而消失。</span><span>本機存檔 {envelope.pending ? '· 有待同步資料' : '· 已保存'} </span></footer>
