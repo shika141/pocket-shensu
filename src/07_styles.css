@@ -65,3 +65,38 @@
 .game-scene>.scene-art{z-index:1;}
 .game-scene.room-living .scene-art img,.game-scene.room-kitchen .scene-art img{object-position:center 48%;}
 @media(max-width:780px){.game-scene.room-living .scene-art img{object-position:center 69%;}.game-scene.room-kitchen .scene-art img{object-position:center 72%;}}
+
+/* 015｜角色依裝置調整顯示高度與地板留白，狀態卡放大至手機可讀。 */
+.game-scene{--shensu-height:38%;--shensu-floor:4%;}
+.game-scene.room-living{--shensu-x:53%;--shensu-height:38%;}
+.game-scene.room-bedroom{--shensu-x:48%;--shensu-height:36%;}
+.game-scene.room-kitchen{--shensu-x:51%;--shensu-height:38%;}
+.game-scene.room-pool{--shensu-x:53%;--shensu-height:38%;}
+.game-scene>.character{height:var(--shensu-height);bottom:var(--shensu-floor);width:auto;max-height:calc(100% - 24px);object-fit:contain;object-position:center bottom;transform:translateX(-50%);}
+.game-scene>.character.tired{transform:translateX(-50%);}
+.scene-status{width:220px;padding:13px 15px 11px;}
+.scene-status-title{font-size:9px;}
+.scene-status .relationship>div:first-child,.scene-status .stat-row>div:first-child{font-size:10px;}
+.scene-status .relationship strong,.scene-status .stat-row b{font-size:10px;}
+.scene-facts{font-size:8px;}
+@media(max-width:780px){
+  .game-scene{--shensu-height:43%;--shensu-floor:4%;--shensu-x:63%;}
+  .game-scene.room-living{--shensu-x:65%;--shensu-height:43%;}
+  .game-scene.room-bedroom{--shensu-x:56%;--shensu-height:40%;}
+  .game-scene.room-kitchen{--shensu-x:58%;--shensu-height:42%;}
+  .game-scene.room-pool{--shensu-x:65%;--shensu-height:43%;}
+  .game-scene>.character{height:var(--shensu-height);bottom:var(--shensu-floor);max-height:calc(100% - 24px);width:auto;}
+  .scene-status{width:170px;padding:10px 11px 9px;}
+  .scene-status-title,.scene-status .scene-status-title{font-size:8px;}
+  .scene-status .relationship>div:first-child,.scene-status .stat-row>div:first-child{font-size:8px;}
+  .scene-status .relationship strong,.scene-status .stat-row b{font-size:8px;}
+  .scene-status .relationship small{font-size:7px;}
+  .scene-facts{font-size:7px;}
+}
+@media(max-width:380px){
+  .game-scene{--shensu-height:40%;--shensu-floor:4%;}
+  .game-scene.room-living,.game-scene.room-pool{--shensu-height:40%;--shensu-x:64%;}
+  .game-scene.room-bedroom{--shensu-height:38%;--shensu-x:56%;}
+  .game-scene.room-kitchen{--shensu-height:40%;--shensu-x:58%;}
+  .scene-status{width:158px;padding:9px 10px 8px;}
+}
