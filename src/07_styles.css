@@ -50,3 +50,11 @@
 .game-scene>.plush{left:calc(var(--shensu-x) + 14%);bottom:var(--shensu-floor);transform:none;}
 @media(max-width:780px){.game-scene{--shensu-height:32%;}.game-scene>.plush{left:calc(var(--shensu-x) + 15%);bottom:var(--shensu-floor);}}
 @media(max-width:380px){.game-scene{--shensu-height:32%;}}
+
+/* 012｜曜川泳池與臥室使用分裝的桌面／手機背景圖。 */
+.game-scene.room-pool,.game-scene.room-bedroom{background:#dce5e4;}
+.game-scene.room-pool:after,.game-scene.room-bedroom:after{background:none;}
+.game-scene>.scene-art{position:absolute;z-index:-1;inset:0;overflow:hidden;background:none;}
+.game-scene>.scene-art:after{display:none;}
+.scene-art img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 38%;}
+@media(max-width:780px){.scene-art img{object-position:center 50%;}}

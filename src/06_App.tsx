@@ -304,7 +304,13 @@ function speech(mood: GameState['mood'], activity: GameState['activity']) {
   if (mood === '想撒嬌') return '……過來。'
   return '嗯。'
 }
-function Scene({ room }: { room: Room }) { return <div className={`scene scene-${room}`}><div className="window"><div className="skyline"><i/><i/><i/><i/><i/></div></div>{room === 'pool' ? <><div className="pool-water"><i/><i/><i/></div><div className="starting-block">04</div></> : room === 'bedroom' ? <><div className="bed"><i/></div><div className="lamp"/></> : room === 'kitchen' ? <><div className="counter"/><div className="table"/></> : <><div className="sofa"><i/></div><div className="coffee-table"/></>}</div> }
+function Scene({ room }: { room: Room }) {
+  if (room === 'bedroom' || room === 'pool') return <picture className={`scene scene-${room} scene-art`}>
+    <source media="(max-width: 780px)" srcSet={`/assets/scenes/${room}-mobile-012.webp`}/>
+    <img src={`/assets/scenes/${room}-desktop-012.webp`} alt="" aria-hidden="true"/>
+  </picture>
+  return <div className={`scene scene-${room}`}><div className="window"><div className="skyline"><i/><i/><i/><i/><i/></div></div>{room === 'kitchen' ? <><div className="counter"/><div className="table"/></> : <><div className="sofa"><i/></div><div className="coffee-table"/></>}</div>
+}
 const characterAssets: Record<Outfit, string> = {
   casual: '/assets/character/shensu-casual-010.png',
   home: '/assets/character/shensu-home-010.png',
