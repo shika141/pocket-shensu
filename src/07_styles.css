@@ -32,3 +32,14 @@
 @media(max-width:1050px){.app-shell{padding:23px 28px}.game-layout{grid-template-columns:minmax(150px,1fr) 340px minmax(240px,1fr);gap:20px}.device-area{transform:scale(.9);transform-origin:center}.intro h1{font-size:32px}.intro p{font-size:11px}}
 @media(max-width:780px){.app-shell{padding:18px 15px 14px}.topbar{padding-bottom:14px}.game-layout{grid-template-columns:1fr;gap:0;padding:16px 0 10px}.intro{display:none}.device-area{width:340px;height:465px;transform:none;order:0}.egg-screen{top:68px;width:266px;height:232px;border-width:7px}.device-logo{top:37px}.device-bottom{top:328px}.button-row{margin-top:13px;gap:23px}.button-row button{width:43px;height:43px}.button-row .confirm-button{width:54px;height:54px}.control-panel{order:1;justify-self:center;max-width:430px;min-height:330px;margin-top:13px;padding:17px 17px 12px}.menu-list{max-height:270px}.panel-footer span:last-child{font-size:6px}.footnote{font-size:8px}.screen-top,.screen-bottom{font-size:6px}}
 @media(max-width:380px){.device-area{transform:scale(.92);margin:-12px 0}.control-panel{margin-top:0}.account-chip{font-size:9px;padding:7px 9px}.brand strong{font-size:12px}}
+
+/* 010｜設定集單人透明角色：以可見人物高度控制比例，鎖定地板基線並依房間預留定位變數。 */
+.game-scene{--shensu-height:28%;--shensu-x:50%;--shensu-floor:2.5%;}
+.game-scene.room-living{--shensu-height:28%;--shensu-x:50%;--shensu-floor:2.5%;}
+.game-scene.room-bedroom{--shensu-height:28%;--shensu-x:48%;--shensu-floor:2.5%;}
+.game-scene.room-kitchen{--shensu-height:28%;--shensu-x:51%;--shensu-floor:2.5%;}
+.game-scene.room-pool{--shensu-height:28%;--shensu-x:50%;--shensu-floor:2.5%;}
+.game-scene>.character{position:absolute;z-index:3;left:var(--shensu-x);bottom:var(--shensu-floor);display:block;width:auto;height:var(--shensu-height);max-width:none;object-fit:contain;object-position:center bottom;transform:translateX(-50%);transform-origin:center bottom;image-rendering:auto;filter:drop-shadow(0 4px 4px #30434d20);animation:none;}
+.game-scene>.character.tired{transform:translateX(-50%);filter:drop-shadow(0 4px 4px #30434d18) saturate(.88);animation:none;}
+@media(max-width:780px){.game-scene{--shensu-height:28%;--shensu-x:53%;--shensu-floor:2.5%;}.game-scene.room-bedroom{--shensu-x:50%;}.game-scene.room-kitchen{--shensu-x:54%;}.game-scene.room-pool{--shensu-x:53%;}.game-scene>.character{height:var(--shensu-height);width:auto;bottom:var(--shensu-floor);transform:translateX(-50%);}.game-scene>.character.tired{transform:translateX(-50%);}}
+@media(max-width:380px){.game-scene{--shensu-height:28%;}.game-scene>.character{height:var(--shensu-height);}}
