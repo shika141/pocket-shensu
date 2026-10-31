@@ -250,7 +250,7 @@ export default function App() {
   }
 
   return <main className="app-shell">
-    <header className="topbar"><div className="brand"><span className="brand-mark">S</span><div><strong>口袋沈溯</strong><small>POCKET SHENSU · MVP 0.6</small></div></div>
+    <header className="topbar"><div className="brand"><span className="brand-mark">S</span><div><strong>口袋沈溯</strong><small>POCKET SHENSU · MVP 0.7</small></div></div>
       <button className="account-chip" onClick={() => setAuthOpen(!authOpen)} disabled={!supabase} title={supabase ? '帳號與雲端同步' : '請先設定 Supabase'}>
         {userEmail ? <><Wifi size={15}/><span>{userEmail}</span></> : <><WifiOff size={15}/><span>{supabase ? '登入同步' : '本機模式'}</span></>}
       </button>
@@ -260,7 +260,7 @@ export default function App() {
         <Scene room={state.room}/>
         <div className="scene-heading"><div><span className="eyebrow">現在的位置</span><strong>{roomNames[state.room]}</strong></div><time>{timeLabel}</time></div>
         <Character outfit={state.outfit} mood={state.mood}/>
-        {state.sharkPlush && state.room !== 'pool' && <div className="plush">🦈</div>}
+        {state.sharkPlush && state.room !== 'pool' && state.outfit !== 'shark' && <div className="plush">🦈</div>}
         {dialogueVisible && <div className="scene-dialogue" role="status" aria-live="polite"><span>沈溯 · {state.activity}</span><p>{state.lastInteraction || speech(state.mood, state.activity)}</p></div>}
         <aside className="scene-status" aria-label="沈溯狀態">
           <div className="scene-status-title"><span>SHENSU · 24</span><span className="status-dot" title={syncText}/></div>
@@ -299,4 +299,4 @@ function speech(mood: GameState['mood'], activity: GameState['activity']) {
   return '嗯。'
 }
 function Scene({ room }: { room: Room }) { return <div className={`scene scene-${room}`}><div className="window"><div className="skyline"><i/><i/><i/><i/><i/></div></div>{room === 'pool' ? <><div className="pool-water"><i/><i/><i/></div><div className="starting-block">04</div></> : room === 'bedroom' ? <><div className="bed"><i/></div><div className="lamp"/></> : room === 'kitchen' ? <><div className="counter"/><div className="table"/></> : <><div className="sofa"><i/></div><div className="coffee-table"/></>}</div> }
-function Character({ outfit, mood }: { outfit: Outfit; mood: GameState['mood'] }) { return <div className={`character character-${outfit} ${mood === '疲倦' ? 'tired' : ''}`}><div className="hair"><i/><i/><i/></div><div className="head"><i className="eye eye-left"/><i className="eye eye-right"/><i className="mole"/><i className="mouth"/></div><div className="neck"/><div className="body"><i className="arm arm-left"/><i className="arm arm-right"/><i className="leg leg-left"/><i className="leg leg-right"/></div>{outfit === 'shark' && <div className="shark-hood">⌃</div>}</div> }
+function Character({ outfit, mood }: { outfit: Outfit; mood: GameState['mood'] }) { return <div role="img" aria-label={`沈溯，${outfitName(outfit)}，${mood}`} className={`character character-${outfit} ${mood === '疲倦' ? 'tired' : ''}`}/> }
