@@ -1,6 +1,6 @@
 // 01｜遊戲資料與平衡參數：角色作息、狀態範圍、互動選項集中管理。
 export type Room = 'living' | 'bedroom' | 'kitchen' | 'pool'
-export type Outfit = 'home' | 'training' | 'shark'
+export type Outfit = 'casual' | 'home' | 'training' | 'swim' | 'sleep' | 'shark'
 export type Mood = '平靜' | '開心' | '疲倦' | '煩躁' | '低落' | '想撒嬌'
 export type Activity = '休息' | '晨訓' | '下午訓練' | '早餐' | '午餐' | '晚餐' | '睡眠' | '自由活動'
 

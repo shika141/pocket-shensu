@@ -23,7 +23,7 @@ export function simulate(state: GameState | null, now = Date.now()): GameState {
   next.activity = activity
   // 訓練和用餐採固定行程；玩家切換房間不會改變角色行程。
   next.room = activity === '晨訓' || activity === '下午訓練' || activity === '睡眠' || activity === '早餐' || activity === '午餐' || activity === '晚餐' ? room : next.room
-  next.outfit = activity === '晨訓' || activity === '下午訓練' ? 'training' : activity === '睡眠' ? 'home' : next.outfit === 'training' ? 'home' : next.outfit
+  next.outfit = activity === '晨訓' || activity === '下午訓練' ? 'swim' : activity === '睡眠' ? 'sleep' : ['training', 'swim', 'sleep'].includes(next.outfit) ? 'home' : next.outfit
   if (next.energy < 30) next.mood = '疲倦'
   else if (next.hunger < 25) next.mood = '煩躁'
   else if (next.mood === '疲倦' || next.mood === '煩躁') next.mood = '平靜'

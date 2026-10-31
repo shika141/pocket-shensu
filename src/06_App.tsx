@@ -29,7 +29,7 @@ const actionItems: Record<Room, Record<InteractionKind, { id: Action; label: str
     care: [{ id: 'rest', label: '提醒他補充體力', hint: '體力 +24', icon: '☾' }, { id: 'feed', label: '遞上訓練餐點', hint: '飽足 +30', icon: '＋' }],
   },
 }
-const outfitItems: Record<Room, Outfit[]> = { living: ['home', 'shark'], bedroom: ['home', 'shark'], kitchen: ['home', 'shark'], pool: ['training'] }
+const outfitItems: Record<Room, Outfit[]> = { living: ['casual', 'home', 'shark'], bedroom: ['home', 'sleep', 'shark'], kitchen: ['casual', 'home', 'shark'], pool: ['training', 'swim'] }
 const roomNames: Record<Room, string> = { living: '高樓公寓・客廳', bedroom: '高樓公寓・臥室', kitchen: '高樓公寓・廚房', pool: '曜川競技泳池' }
 
 export default function App() {
@@ -205,7 +205,10 @@ export default function App() {
     else if (page === 'outfit') changeOutfit(currentOutfits[selected % currentOutfits.length])
   }
   const changeRoom = (room: Room) => {
-    const outfit: Outfit = room === 'pool' ? 'training' : state.outfit === 'training' ? 'home' : state.outfit
+    const outfit: Outfit = room === 'pool'
+      ? state.outfit === 'swim' ? 'swim' : 'training'
+      : state.outfit === 'training' || state.outfit === 'swim' ? 'home'
+        : room === 'bedroom' && state.activity === '睡眠' ? 'sleep' : state.outfit
     commit(setOutfit(setRoom(state, room), outfit))
     showDialogue()
     setSelected(0)
@@ -250,7 +253,7 @@ export default function App() {
   }
 
   return <main className="app-shell">
-    <header className="topbar"><div className="brand"><span className="brand-mark">S</span><div><strong>口袋沈溯</strong><small>POCKET SHENSU · MVP 0.7</small></div></div>
+    <header className="topbar"><div className="brand"><span className="brand-mark">S</span><div><strong>口袋沈溯</strong><small>POCKET SHENSU · MVP 0.8</small></div></div>
       <button className="account-chip" onClick={() => setAuthOpen(!authOpen)} disabled={!supabase} title={supabase ? '帳號與雲端同步' : '請先設定 Supabase'}>
         {userEmail ? <><Wifi size={15}/><span>{userEmail}</span></> : <><WifiOff size={15}/><span>{supabase ? '登入同步' : '本機模式'}</span></>}
       </button>
@@ -277,7 +280,7 @@ export default function App() {
           <div className="menu-list">{currentActions.map((row, index) => <button key={row.id} className={`menu-row ${selected % currentActions.length === index ? 'selected' : ''}`} onMouseEnter={() => setSelected(index)} onClick={() => doAction(row.id)}><span className="row-icon">{row.icon}</span><span className="row-copy"><b>{row.label}</b><small>{row.hint}</small></span><span className="row-arrow">›</span></button>)}</div>
         </>}
         {page === 'outing' && <div className="menu-list room-list">{ROOMS.map((room, index) => <button key={room.id} className={`menu-row ${state.room === room.id ? 'selected' : ''}`} onMouseEnter={() => setSelected(index)} onClick={() => changeRoom(room.id)}><span className="row-icon">{room.icon}</span><span className="row-copy"><b>{room.name}</b><small>{state.room === room.id ? '沈溯目前在這裡' : room.id === 'pool' ? '前往曜川競技游泳隊' : '回到沈溯的公寓'}</small></span><span className="row-arrow">›</span></button>)}</div>}
-        {page === 'outfit' && <div className="closet-grid">{currentOutfits.map((outfit, index) => <button className={`outfit-card ${state.outfit === outfit ? 'selected' : ''}`} key={outfit} onMouseEnter={() => setSelected(index)} onClick={() => changeOutfit(outfit)}><span>{outfit === 'shark' ? '🦈' : outfit === 'training' ? '🏊' : '◒'}</span><b>{outfitName(outfit)}</b><small>{state.outfit === outfit ? '穿著中' : '換上這套'}</small></button>)}</div>}
+        {page === 'outfit' && <div className="closet-grid">{currentOutfits.map((outfit, index) => <button className={`outfit-card ${state.outfit === outfit ? 'selected' : ''}`} key={outfit} onMouseEnter={() => setSelected(index)} onClick={() => changeOutfit(outfit)}><span>{outfitIcon(outfit)}</span><b>{outfitName(outfit)}</b><small>{state.outfit === outfit ? '穿著中' : '換上這套'}</small></button>)}</div>}
         {page === 'memories' && <div className="memory-view">{state.unlockedMemories.length ? <div className="memory-card"><div className="memory-art">🦈<span>✦</span></div><b>安靜等你</b><p>沈溯穿著灰藍鯊魚裝，抱著娃娃坐在沙發上。</p><small>特別事件 · 已收錄</small></div> : <div className="empty-memory"><div>✧</div><b>回憶還是空白的</b><p>陪伴沈溯、參與日常，重要時刻會慢慢留在這裡。</p><button onClick={() => { setPage('interaction'); setInteractionKind('companion'); setSelected(0) }}>陪他待一會兒</button></div>}</div>}
         <div className="panel-footer"><span>{syncText}</span><span>← → 分類 · ↑ ↓ 選擇 · Enter 確認</span></div>
       </section>
@@ -290,7 +293,10 @@ export default function App() {
 }
 
 function Stat({ label, value, color }: { label: string; value: number; color: string }) { return <div className="stat-row"><div><span>{label}</span><b>{value}%</b></div><div className="bar"><i className={color} style={{ width: `${value}%` }}/></div></div> }
-function outfitName(outfit: Outfit) { return outfit === 'training' ? '競技訓練服' : outfit === 'shark' ? '灰藍鯊魚裝' : '居家服' }
+function outfitIcon(outfit: Outfit) { return ({ casual: '◒', home: '⌂', training: '⌁', swim: '≈', sleep: '☾', shark: '🦈' } as Record<Outfit, string>)[outfit] }
+function outfitName(outfit: Outfit) {
+  return ({ casual: '連帽外套', home: '居家服', training: '訓練外套', swim: '競技泳裝', sleep: '睡衣', shark: '灰藍鯊魚裝' } as Record<Outfit, string>)[outfit]
+}
 function speech(mood: GameState['mood'], activity: GameState['activity']) {
   if (mood === '低落' || mood === '煩躁') return '……'
   if (activity === '晨訓' || activity === '下午訓練') return '再一趟。'
