@@ -305,6 +305,10 @@ function speech(mood: GameState['mood'], activity: GameState['activity']) {
   return '嗯。'
 }
 function Scene({ room }: { room: Room }) {
+  if (room === 'living' || room === 'kitchen') return <picture className={`scene scene-${room} scene-art`}>
+    <source media="(max-width: 780px)" srcSet={`/assets/scenes/${room}-mobile-014.webp`}/>
+    <img src={`/assets/scenes/${room}-desktop-014.webp`} alt="" aria-hidden="true"/>
+  </picture>
   if (room === 'bedroom' || room === 'pool') return <picture className={`scene scene-${room} scene-art`}>
     <source media="(max-width: 780px)" srcSet={`/assets/scenes/${room}-mobile-012.webp`}/>
     <img src={`/assets/scenes/${room}-desktop-012.webp`} alt="" aria-hidden="true"/>

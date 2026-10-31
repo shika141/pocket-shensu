@@ -58,3 +58,10 @@
 .game-scene>.scene-art:after{display:none;}
 .scene-art img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 38%;}
 @media(max-width:780px){.scene-art img{object-position:center 50%;}}
+
+/* 014｜客廳與廚房改用獨立桌面／手機背景素材，角色與互動圖層維持原位。 */
+.game-scene.room-living,.game-scene.room-kitchen{background:#dce5e4;}
+.game-scene.room-living:after,.game-scene.room-kitchen:after{background:none;}
+.game-scene>.scene-art{z-index:1;}
+.game-scene.room-living .scene-art img,.game-scene.room-kitchen .scene-art img{object-position:center 48%;}
+@media(max-width:780px){.game-scene.room-living .scene-art img{object-position:center 69%;}.game-scene.room-kitchen .scene-art img{object-position:center 72%;}}
