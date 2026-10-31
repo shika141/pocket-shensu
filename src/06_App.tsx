@@ -1,5 +1,5 @@
 // 06｜MVP 遊戲主畫面：人物場景、狀態欄、情境互動、登入與同步狀態。
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Heart, KeyRound, LogOut, Wifi, WifiOff } from 'lucide-react'
 import { freshState, relationship, ROOMS, type GameState, type Outfit, type Room } from './01_gameData'
 import { simulate } from './02_simulation'
@@ -37,6 +37,8 @@ export default function App() {
   const [page, setPage] = useState<Page>('interaction')
   const [interactionKind, setInteractionKind] = useState<InteractionKind>('companion')
   const [selected, setSelected] = useState(0)
+  const [dialogueVisible, setDialogueVisible] = useState(false)
+  const dialogueTimer = useRef<number | undefined>(undefined)
   const [clock, setClock] = useState(new Date())
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
@@ -49,6 +51,16 @@ export default function App() {
   const state = envelope.state
   const currentActions = actionItems[state.room][interactionKind]
   const currentOutfits = outfitItems[state.room]
+
+  const showDialogue = () => {
+    setDialogueVisible(true)
+    if (dialogueTimer.current) window.clearTimeout(dialogueTimer.current)
+    dialogueTimer.current = window.setTimeout(() => setDialogueVisible(false), 4200)
+  }
+
+  useEffect(() => () => {
+    if (dialogueTimer.current) window.clearTimeout(dialogueTimer.current)
+  }, [])
 
   const commit = useCallback((next: GameState) => {
     const updated = { ...next, updatedAt: Date.now() }
@@ -181,7 +193,7 @@ export default function App() {
 
   const doAction = (id: Action) => {
     if (busy) return
-    setBusy(true); commit(interact(state, id)); window.setTimeout(() => setBusy(false), 420)
+    setBusy(true); commit(interact(state, id)); showDialogue(); window.setTimeout(() => setBusy(false), 420)
   }
   const changePage = (direction: number) => {
     const index = pages.indexOf(page)
@@ -190,12 +202,17 @@ export default function App() {
   const confirm = () => {
     if (page === 'interaction') doAction(currentActions[selected % currentActions.length].id)
     else if (page === 'outing') changeRoom(ROOMS[selected % ROOMS.length].id)
-    else if (page === 'outfit') commit(setOutfit(state, currentOutfits[selected % currentOutfits.length]))
+    else if (page === 'outfit') changeOutfit(currentOutfits[selected % currentOutfits.length])
   }
   const changeRoom = (room: Room) => {
     const outfit: Outfit = room === 'pool' ? 'training' : state.outfit === 'training' ? 'home' : state.outfit
     commit(setOutfit(setRoom(state, room), outfit))
+    showDialogue()
     setSelected(0)
+  }
+  const changeOutfit = (outfit: Outfit) => {
+    commit(setOutfit(state, outfit))
+    showDialogue()
   }
 
   useEffect(() => {
@@ -233,7 +250,7 @@ export default function App() {
   }
 
   return <main className="app-shell">
-    <header className="topbar"><div className="brand"><span className="brand-mark">S</span><div><strong>口袋沈溯</strong><small>POCKET SHENSU · MVP 0.5</small></div></div>
+    <header className="topbar"><div className="brand"><span className="brand-mark">S</span><div><strong>口袋沈溯</strong><small>POCKET SHENSU · MVP 0.6</small></div></div>
       <button className="account-chip" onClick={() => setAuthOpen(!authOpen)} disabled={!supabase} title={supabase ? '帳號與雲端同步' : '請先設定 Supabase'}>
         {userEmail ? <><Wifi size={15}/><span>{userEmail}</span></> : <><WifiOff size={15}/><span>{supabase ? '登入同步' : '本機模式'}</span></>}
       </button>
@@ -244,7 +261,7 @@ export default function App() {
         <div className="scene-heading"><div><span className="eyebrow">現在的位置</span><strong>{roomNames[state.room]}</strong></div><time>{timeLabel}</time></div>
         <Character outfit={state.outfit} mood={state.mood}/>
         {state.sharkPlush && state.room !== 'pool' && <div className="plush">🦈</div>}
-        <div className="scene-dialogue"><span>沈溯 · {state.activity}</span><p>{state.lastInteraction || speech(state.mood, state.activity)}</p></div>
+        {dialogueVisible && <div className="scene-dialogue" role="status" aria-live="polite"><span>沈溯 · {state.activity}</span><p>{state.lastInteraction || speech(state.mood, state.activity)}</p></div>}
         <aside className="scene-status" aria-label="沈溯狀態">
           <div className="scene-status-title"><span>SHENSU · 24</span><span className="status-dot" title={syncText}/></div>
           <div className="relationship"><div><Heart size={15}/><span>{relationship(state.intimacy)}</span></div><strong>{state.intimacy}/100</strong><div className="heart-meter"><i style={{ width: `${state.intimacy}%` }}/></div><small>親密度</small></div>
@@ -260,7 +277,7 @@ export default function App() {
           <div className="menu-list">{currentActions.map((row, index) => <button key={row.id} className={`menu-row ${selected % currentActions.length === index ? 'selected' : ''}`} onMouseEnter={() => setSelected(index)} onClick={() => doAction(row.id)}><span className="row-icon">{row.icon}</span><span className="row-copy"><b>{row.label}</b><small>{row.hint}</small></span><span className="row-arrow">›</span></button>)}</div>
         </>}
         {page === 'outing' && <div className="menu-list room-list">{ROOMS.map((room, index) => <button key={room.id} className={`menu-row ${state.room === room.id ? 'selected' : ''}`} onMouseEnter={() => setSelected(index)} onClick={() => changeRoom(room.id)}><span className="row-icon">{room.icon}</span><span className="row-copy"><b>{room.name}</b><small>{state.room === room.id ? '沈溯目前在這裡' : room.id === 'pool' ? '前往曜川競技游泳隊' : '回到沈溯的公寓'}</small></span><span className="row-arrow">›</span></button>)}</div>}
-        {page === 'outfit' && <div className="closet-grid">{currentOutfits.map((outfit, index) => <button className={`outfit-card ${state.outfit === outfit ? 'selected' : ''}`} key={outfit} onMouseEnter={() => setSelected(index)} onClick={() => commit(setOutfit(state, outfit))}><span>{outfit === 'shark' ? '🦈' : outfit === 'training' ? '🏊' : '◒'}</span><b>{outfitName(outfit)}</b><small>{state.outfit === outfit ? '穿著中' : '換上這套'}</small></button>)}</div>}
+        {page === 'outfit' && <div className="closet-grid">{currentOutfits.map((outfit, index) => <button className={`outfit-card ${state.outfit === outfit ? 'selected' : ''}`} key={outfit} onMouseEnter={() => setSelected(index)} onClick={() => changeOutfit(outfit)}><span>{outfit === 'shark' ? '🦈' : outfit === 'training' ? '🏊' : '◒'}</span><b>{outfitName(outfit)}</b><small>{state.outfit === outfit ? '穿著中' : '換上這套'}</small></button>)}</div>}
         {page === 'memories' && <div className="memory-view">{state.unlockedMemories.length ? <div className="memory-card"><div className="memory-art">🦈<span>✦</span></div><b>安靜等你</b><p>沈溯穿著灰藍鯊魚裝，抱著娃娃坐在沙發上。</p><small>特別事件 · 已收錄</small></div> : <div className="empty-memory"><div>✧</div><b>回憶還是空白的</b><p>陪伴沈溯、參與日常，重要時刻會慢慢留在這裡。</p><button onClick={() => { setPage('interaction'); setInteractionKind('companion'); setSelected(0) }}>陪他待一會兒</button></div>}</div>}
         <div className="panel-footer"><span>{syncText}</span><span>← → 分類 · ↑ ↓ 選擇 · Enter 確認</span></div>
       </section>
